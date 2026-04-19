@@ -44,9 +44,17 @@ export const Router = ({ children, fallback = null }) => {
     if (!React.isValidElement(child)) return false;
 
     const { path } = child.props;
+    if (typeof path !== 'string') return false;
+
+    // Normalize paths by removing trailing slashes and lowercase for better matching
+    const p = path.trim();
+    const normalizedPath = (p === '/' ? p : p.replace(/\/$/, '')).toLowerCase();
+    
+    const cp = (currentPath || '').trim();
+    const normalizedCurrentPath = (cp === '/' ? cp : cp.replace(/\/$/, '')).toLowerCase();
 
     // Direct match
-    if (path === currentPath) return true;
+    if (normalizedPath === normalizedCurrentPath) return true;
 
     // Parameter match (e.g. /blogs/:handle)
     if (path.includes(':')) {

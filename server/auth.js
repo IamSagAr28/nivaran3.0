@@ -12,7 +12,7 @@ const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173'; // Frontend URL
 
 if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !GOOGLE_REDIRECT_URI) {
-  console.error('❌ Missing Google OAuth configuration.');
+  // Silent when google oauth is disabled
 }
 
 const client = new OAuth2Client(

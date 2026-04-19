@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
-import { fetchArticleByHandle, getOptimizedImageUrl } from '../shopify/client';
+import { getOptimizedImageUrl } from '../shopify/client';
 import { formatDate } from '../utils/date';
-import { Calendar, User, ArrowLeft, Clock } from 'lucide-react';
+import { Calendar, User, ArrowLeft } from 'lucide-react';
 import { useRouter } from '../utils/Router';
 
 interface BlogPostPageProps {
@@ -23,8 +23,21 @@ const BlogPostPage: React.FC<BlogPostPageProps> = ({ params }) => {
         const loadArticle = async () => {
             setLoading(true);
             if (blogHandle && articleHandle) {
-                const data = await fetchArticleByHandle(blogHandle, articleHandle);
-                setArticle(data);
+                try {
+                    const response = await fetch(`/api/blogs/article/${articleHandle}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Ensure compatibility with existing renderer
+                        setArticle({
+                            ...data,
+                            contentHtml: data?.contentHtml ?? data?.content ?? ''
+                        });
+                    } else {
+                        setArticle(null);
+                    }
+                } catch {
+                    setArticle(null);
+                }
             }
             setLoading(false);
         };

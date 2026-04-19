@@ -149,14 +149,28 @@ export default function ProductPage() {
                     {/* Product Image Gallery */}
                     <div className="product-gallery">
                         <div className="product-image-main">
-                            <img 
-                                id="mainImage" 
-                                src={getOptimizedImageUrl(images[currentImageIndex], 800, 800)}
-                                alt={product.title}
-                                width="800" 
-                                height="800" 
-                                loading="eager" 
-                            />
+                            {images[currentImageIndex]?.endsWith('.mp4') || images[currentImageIndex]?.startsWith('data:video') ? (
+                                <video
+                                    id="mainImage" 
+                                    src={images[currentImageIndex]}
+                                    width="800"
+                                    height="800"
+                                    autoPlay
+                                    muted
+                                    loop
+                                    playsInline
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                />
+                            ) : (
+                                <img 
+                                    id="mainImage" 
+                                    src={getOptimizedImageUrl(images[currentImageIndex], 800, 800)}
+                                    alt={product.title}
+                                    width="800" 
+                                    height="800" 
+                                    loading="eager" 
+                                />
+                            )}
                             <div className="product-badge">Featured</div>
                             <div className="image-carousel-controls">
                                 <button className="carousel-btn prev" onClick={() => changeImage(-1)} aria-label="Previous image">❮</button>
@@ -183,7 +197,11 @@ export default function ProductPage() {
                                     onClick={() => setCurrentImageIndex(index)}
                                     onKeyDown={(e) => { if(e.key === 'Enter') setCurrentImageIndex(index) }}
                                 >
-                                    <img src={img} alt={`View ${index + 1}`} width="150" height="150" loading="lazy" />
+                                    {img.endsWith('.mp4') || img.startsWith('data:video') ? (
+                                      <video src={img} width="150" height="150" muted playsInline style={{ objectFit: 'cover' }} />
+                                    ) : (
+                                      <img src={img} alt={`View ${index + 1}`} width="150" height="150" loading="lazy" />
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -292,7 +310,7 @@ export default function ProductPage() {
                             <div className="trust-signals-grid">
                                 <div className="trust-signal-item">
                                     <div className="trust-signal-icon">🚚</div>
-                                    <span className="trust-signal-text">Free Shipping on Orders Over Rs. 500</span>
+                                    <span className="trust-signal-text">Free Shipping on Orders Over Rs. 999</span>
                                 </div>
                                 <div className="trust-signal-item">
                                     <div className="trust-signal-icon">↩️</div>
@@ -305,7 +323,7 @@ export default function ProductPage() {
                         <div className="product-info-footer">
                             <div className="info-item">
                                 <div className="info-icon">✓</div>
-                                <span className="info-text">Free Shipping on Orders Over Rs. 500</span>
+                                <span className="info-text">Free Shipping on Orders Over Rs. 999</span>
                             </div>
                             <div className="info-item">
                                 <div className="info-icon">✓</div>
@@ -355,7 +373,7 @@ export default function ProductPage() {
                     <div id="shipping" className={`tab-content ${activeTab === 'shipping' ? 'active' : ''}`}>
                         <h3 style={{color: 'var(--text-primary)', marginBottom: '16px'}}>Shipping & Returns</h3>
                         <p style={{color: 'var(--text-secondary)', lineHeight: '1.8', marginBottom: '16px'}}>
-                            <strong>Shipping:</strong> Free shipping on all orders! Your items will be carefully packaged and shipped within 2-3 business days.
+                            <strong>Shipping:</strong> Free shipping on orders over ₹999. For orders below, ₹150 delivery charge applies. Your items will be carefully packaged and shipped within 2-3 business days.
                         </p>
                         <p style={{color: 'var(--text-secondary)', lineHeight: '1.8'}}>
                             <strong>Returns:</strong> Not satisfied? No problem! We offer easy returns within 30 days of purchase. Items must be unused and in original packaging.

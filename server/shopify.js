@@ -6,7 +6,7 @@ const SHOPIFY_ADMIN_TOKEN = process.env.SHOPIFY_ADMIN_TOKEN; // Admin API Access
 const API_VERSION = '2024-01';
 
 if (!SHOPIFY_STORE || !SHOPIFY_ADMIN_TOKEN) {
-  console.error('❌ Missing Shopify Admin configuration. Check SHOPIFY_STORE and SHOPIFY_ADMIN_TOKEN.');
+  // Silent when shopify is disabled
 }
 
 const shopifyClient = axios.create({

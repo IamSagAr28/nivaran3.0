@@ -50,13 +50,13 @@ Name: VITE_SHOPIFY_STORE_URL
 Value: nivaranupcyclers.myshopify.com
 
 Name: VITE_SHOPIFY_STOREFRONT_TOKEN
-Value: 627e86821a39946b5c4ff1b7927a376b
+Value: <YOUR_STOREFRONT_TOKEN>
 
 Name: VITE_SHOPIFY_API_VERSION
 Value: 2024-01
 
 Name: VITE_GOOGLE_CLIENT_ID
-Value: 818410473418-9k79h8qbi9lsuevshnfal8kbml01vqih.apps.googleusercontent.com
+Value: <YOUR_GOOGLE_CLIENT_ID>
 
 Name: VITE_API_URL
 Value: https://your-backend-url.onrender.com
@@ -72,7 +72,7 @@ vercel env add VITE_SHOPIFY_STORE_URL
 # Select: Production
 
 vercel env add VITE_SHOPIFY_STOREFRONT_TOKEN
-# Enter: 627e86821a39946b5c4ff1b7927a376b
+# Enter: <YOUR_STOREFRONT_TOKEN>
 # Select: Production
 
 vercel env add VITE_SHOPIFY_API_VERSION
@@ -80,7 +80,7 @@ vercel env add VITE_SHOPIFY_API_VERSION
 # Select: Production
 
 vercel env add VITE_GOOGLE_CLIENT_ID
-# Enter: 818410473418-9k79h8qbi9lsuevshnfal8kbml01vqih.apps.googleusercontent.com
+# Enter: <YOUR_GOOGLE_CLIENT_ID>
 # Select: Production
 ```
 
@@ -130,11 +130,11 @@ Value: 5000
 Key: NODE_ENV
 Value: production
 
-Key: SESSION_SECRET
-Value: nivaran_secure_9823_random_key_x7z
+Key: SESSION_KEY
+Value: [REDACTED]
 
 Key: GOOGLE_CLIENT_ID
-Value: 818410473418-9k79h8qbi9lsuevshnfal8kbml01vqih.apps.googleusercontent.com
+Value: [REDACTED]
 
 Key: GOOGLE_CLIENT_SECRET
 Value: [REDACTED]

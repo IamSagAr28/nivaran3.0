@@ -34,7 +34,12 @@ export function Footer() {
       });
 
       if (response.data.success) {
-        alert(response.data.message || 'Thank you for subscribing!');
+        const code = response.data.discountCode;
+        if (code) {
+          alert(`Thank you for subscribing! Your 10% code: ${code}`);
+        } else {
+          alert(response.data.message || 'Thank you for subscribing!');
+        }
         setNewsletterEmail('');
       } else {
         alert(response.data.error || 'Subscription failed. Please try again.');

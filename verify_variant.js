@@ -1,7 +1,12 @@
 const https = require('https');
 
-const SHOPIFY_DOMAIN = 'nivaranupcyclers.myshopify.com';
-const ACCESS_TOKEN = '627e86821a39946b5c4ff1b7927a376b';
+const SHOPIFY_DOMAIN = process.env.SHOPIFY_DOMAIN || process.env.VITE_SHOPIFY_STORE_DOMAIN || process.env.VITE_SHOPIFY_STORE_URL;
+const ACCESS_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN || process.env.VITE_SHOPIFY_STOREFRONT_TOKEN || process.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN;
+
+if (!SHOPIFY_DOMAIN || !ACCESS_TOKEN) {
+  console.error('Missing env vars. Set SHOPIFY_DOMAIN and SHOPIFY_STOREFRONT_TOKEN (or VITE_SHOPIFY_* equivalents).');
+  process.exit(1);
+}
 
 const query = `
 query getVariants {

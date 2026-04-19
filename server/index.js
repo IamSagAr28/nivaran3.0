@@ -8,6 +8,11 @@ const adminRoutes = require('./admin');
 const newsletterRoutes = require('./newsletter');
 const membershipRoutes = require('./membership');
 const workshopRoutes = require('./workshops');
+const productRoutes = require('./products');
+const orderRoutes = require('./orders');
+const blogsRoutes = require('./blogs');
+const heroSlidesRoutes = require('./hero-slides');
+const paymentRoutes = require('./payments');
 const sessionMiddleware = require('./session');
 
 const app = express();
@@ -80,22 +85,27 @@ app.use((req, res, next) => {
 // Webhooks need to be mounted before body parser if we want raw body
 app.use('/api/webhooks', express.raw({ type: 'application/json' }));
 
-// Use JSON parser for all other API routes
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Use JSON parser for all other API routes with increased limit for base64 images/videos
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Session Middleware
 app.use(sessionMiddleware);
 
 // Routes
 app.use('/auth', authRoutes);
-app.use('/api', authRoutes); // Expose /api/me
-app.use('/api/auth', authRoutes); // Expose /api/auth/google/callback for Google OAuth
+app.use('/api', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/webhooks', webhookRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/workshops', workshopRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/blogs', blogsRoutes);
+app.use('/api/hero-slides', heroSlidesRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Health Check
 app.get('/', (req, res) => {

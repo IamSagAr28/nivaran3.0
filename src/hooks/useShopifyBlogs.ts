@@ -1,8 +1,7 @@
 // src/hooks/useShopifyBlogs.ts
-// Custom hook for fetching and managing Shopify blog articles
+// Custom hook for fetching and managing blog articles from local backend (not Shopify)
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchArticles } from '../shopify/client';
 
 export interface ShopifyArticle {
     id: string;
@@ -40,11 +39,15 @@ export function useShopifyBlogs(limit: number = 4): UseBlogsState {
         try {
             setLoading(true);
             setError(null);
-            const data = await fetchArticles(limit);
+            
+            const response = await fetch(`/api/blogs?limit=${limit}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch blogs');
+            }
+            const data = await response.json();
             setArticles(data);
         } catch (err) {
             console.error('Error loading articles:', err);
-            // Don't set error state to prevent UI crash, just show empty
             setArticles([]);
         } finally {
             setLoading(false);

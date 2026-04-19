@@ -30,7 +30,7 @@ import { getFromCache, setInCache, invalidateCache } from './cache';
 
 // Configuration from environment variables
 const SHOPIFY_STORE_URL = import.meta.env.VITE_SHOPIFY_STORE_URL || import.meta.env.VITE_SHOPIFY_STORE_DOMAIN || 'nivaranupcyclers.myshopify.com';
-const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || '627e86821a39946b5c4ff1b7927a376b';
+const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || '';
 const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || '2025-01'; // Updated to latest version
 
 if (!SHOPIFY_STORE_URL || !SHOPIFY_STOREFRONT_TOKEN) {
@@ -45,7 +45,7 @@ console.log('🏪 Shopify Configuration:', {
   store: SHOPIFY_STORE_URL,
   apiVersion: SHOPIFY_API_VERSION,
   endpoint: API_ENDPOINT,
-  tokenPreview: SHOPIFY_STOREFRONT_TOKEN.substring(0, 10) + '...'
+  tokenPreview: SHOPIFY_STOREFRONT_TOKEN ? SHOPIFY_STOREFRONT_TOKEN.substring(0, 10) + '...' : ''
 });
 
 interface GraphQLQuery {
@@ -86,7 +86,7 @@ async function executeGraphQL<T = any>(
   };
 
   console.log('🌐 Making Shopify API request to:', API_ENDPOINT);
-  console.log('🔑 Using token:', SHOPIFY_STOREFRONT_TOKEN.substring(0, 10) + '...');
+  console.log('🔑 Using token:', SHOPIFY_STOREFRONT_TOKEN ? SHOPIFY_STOREFRONT_TOKEN.substring(0, 10) + '...' : '');
 
   try {
     // Add timeout to prevent hanging

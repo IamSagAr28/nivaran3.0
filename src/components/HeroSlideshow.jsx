@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from '../utils/Router';
+import { fetchHeroSlides } from '../utils/shopApi';
 
 export function HeroSlideshow() {
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = [
+  const defaultSlides = [
     {
       image: "/images/hero/hero1.jpg",
       tag: "Sustainable Living Made Beautiful",
@@ -60,6 +61,26 @@ export function HeroSlideshow() {
       secondaryCTA: "Learn More"
     }
   ];
+
+  const [slides, setSlides] = useState(defaultSlides);
+
+  useEffect(() => {
+    fetchHeroSlides()
+      .then((data) => {
+        if (Array.isArray(data.slides) && data.slides.length > 0) {
+          setSlides(data.slides.map((s) => ({
+            image: s.image,
+            tag: s.tag || '',
+            title: s.title || '',
+            highlight: s.highlight || '',
+            description: s.description || '',
+            primaryCTA: s.primary_cta || 'Shop Now',
+            secondaryCTA: s.secondary_cta || 'Learn More'
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto-advance slides every 5 seconds
   useEffect(() => {

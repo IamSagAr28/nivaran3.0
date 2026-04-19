@@ -23,7 +23,7 @@ Value: nivaranupcyclers.myshopify.com
 Environment: Production
 
 Name: VITE_SHOPIFY_STOREFRONT_TOKEN
-Value: 627e86821a39946b5c4ff1b7927a376b
+Value: <YOUR_STOREFRONT_TOKEN>
 Environment: Production
 
 Name: VITE_SHOPIFY_API_VERSION
@@ -31,7 +31,7 @@ Value: 2024-01
 Environment: Production
 
 Name: VITE_GOOGLE_CLIENT_ID
-Value: 818410473418-9k79h8qbi9lsuevshnfal8kbml01vqih.apps.googleusercontent.com
+Value: <YOUR_GOOGLE_CLIENT_ID>
 Environment: Production
 
 Name: VITE_API_URL
@@ -72,8 +72,8 @@ Environment: Production
 ```
 PORT = 5000
 NODE_ENV = production
-SESSION_SECRET = nivaran_secure_9823_random_key_x7z
-GOOGLE_CLIENT_ID = 818410473418-9k79h8qbi9lsuevshnfal8kbml01vqih.apps.googleusercontent.com
+SESSION_SECRET = <GENERATE_A_RANDOM_SESSION_SECRET>
+GOOGLE_CLIENT_ID = <YOUR_GOOGLE_CLIENT_ID>
 GOOGLE_CLIENT_SECRET = [REDACTED]
 SHOPIFY_STORE = nivaranupcyclers.myshopify.com
 SHOPIFY_ADMIN_TOKEN = [REDACTED]
