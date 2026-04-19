@@ -33,7 +33,7 @@ const SHOPIFY_STORE_URL = import.meta.env.VITE_SHOPIFY_STORE_URL || import.meta.
 const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || '';
 const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || '2025-01'; // Updated to latest version
 
-const isShopifyConfigured = Boolean(SHOPIFY_STORE_URL && SHOPIFY_STOREFRONT_TOKEN);
+export const isShopifyConfigured = Boolean(SHOPIFY_STORE_URL && SHOPIFY_STOREFRONT_TOKEN);
 
 if (!isShopifyConfigured) {
   console.warn(

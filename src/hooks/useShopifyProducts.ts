@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { ShopifyProduct } from '../shopify/types';
-import { fetchProducts, fetchProductByHandle } from '../shopify/client';
+import { fetchProducts, fetchProductByHandle, isShopifyConfigured } from '../shopify/client';
 
 interface UseProductsState {
   products: ShopifyProduct[];
@@ -19,6 +19,12 @@ export function useShopifyProducts(): UseProductsState {
 
   const loadProducts = useCallback(async () => {
     try {
+      if (!isShopifyConfigured) {
+        setProducts([]);
+        setError(null);
+        setLoading(false);
+        return;
+      }
       console.log('🔄 Starting to fetch products from Shopify...');
       setLoading(true);
       setError(null);
@@ -71,6 +77,11 @@ export function useShopifyProductDetail(handle: string | undefined): UseProductD
 
     const loadProduct = async () => {
       try {
+        if (!isShopifyConfigured) {
+          setProduct(null);
+          setError(null);
+          return;
+        }
         setLoading(true);
         setError(null);
         const data = await fetchProductByHandle(handle);

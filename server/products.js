@@ -7,6 +7,12 @@ function parseProduct(p) {
   if (!p) return null;
   return {
     ...p,
+    // pg returns DECIMAL as string; ensure frontend always receives numbers
+    price: p.price == null ? p.price : Number(p.price),
+    compare_at_price:
+      p.compare_at_price == null ? p.compare_at_price : Number(p.compare_at_price),
+    stock: p.stock == null ? p.stock : Number(p.stock),
+    featured: p.featured == null ? p.featured : Number(p.featured),
     images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
   };
