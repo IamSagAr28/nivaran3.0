@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Download } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 type SubscriberRow = {
@@ -29,7 +30,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
     try {
       setSettingsLoading(true);
       setSettingsMsg(null);
-      const res = await fetch('/api/newsletter/admin/settings', {
+      const res = await fetch(apiUrl('/api/newsletter/admin/settings'), {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
       if (!res.ok) {
@@ -49,7 +50,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
     try {
       setSettingsSaving(true);
       setSettingsMsg(null);
-      const res = await fetch('/api/newsletter/admin/settings', {
+      const res = await fetch(apiUrl('/api/newsletter/admin/settings'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +78,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
       if (search.trim()) params.set('q', search.trim());
       if (status !== 'all') params.set('status', status);
 
-      const res = await fetch(`/api/newsletter/admin/subscribers?${params.toString()}`, {
+      const res = await fetch(apiUrl(`/api/newsletter/admin/subscribers?${params.toString()}`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 
@@ -112,7 +113,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
   }, [rows, search, status]);
 
   const downloadCsv = () => {
-    window.open('/api/newsletter/admin/export.csv', '_blank');
+    window.open(apiUrl('/api/newsletter/admin/export.csv'), '_blank');
   };
 
   return (

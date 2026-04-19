@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from '../../utils/Router';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 export function AdminLogin() {
@@ -17,7 +18,7 @@ export function AdminLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/admin/login', {
+      const response = await fetch(apiUrl('/api/admin/login'), {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

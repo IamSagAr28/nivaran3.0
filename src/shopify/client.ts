@@ -33,10 +33,14 @@ const SHOPIFY_STORE_URL = import.meta.env.VITE_SHOPIFY_STORE_URL || import.meta.
 const SHOPIFY_STOREFRONT_TOKEN = import.meta.env.VITE_SHOPIFY_STOREFRONT_TOKEN || import.meta.env.VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN || '';
 const SHOPIFY_API_VERSION = import.meta.env.VITE_SHOPIFY_API_VERSION || '2025-01'; // Updated to latest version
 
-if (!SHOPIFY_STORE_URL || !SHOPIFY_STOREFRONT_TOKEN) {
-  console.error('❌ Missing Shopify environment variables');
-  console.error('Required: VITE_SHOPIFY_STORE_URL and VITE_SHOPIFY_STOREFRONT_TOKEN');
-  console.error('Create .env.local file with your Shopify credentials');
+const isShopifyConfigured = Boolean(SHOPIFY_STORE_URL && SHOPIFY_STOREFRONT_TOKEN);
+
+if (!isShopifyConfigured) {
+  console.warn(
+    'Shopify Storefront env vars are not set. ' +
+      'Set either (VITE_SHOPIFY_STORE_URL + VITE_SHOPIFY_STOREFRONT_TOKEN) or ' +
+      '(VITE_SHOPIFY_STORE_DOMAIN + VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN) to enable Shopify-backed pages.'
+  );
 }
 
 const API_ENDPOINT = `https://${SHOPIFY_STORE_URL}/api/${SHOPIFY_API_VERSION}/graphql.json`;
@@ -87,6 +91,12 @@ async function executeGraphQL<T = any>(
 
   console.log('🌐 Making Shopify API request to:', API_ENDPOINT);
   console.log('🔑 Using token:', SHOPIFY_STOREFRONT_TOKEN ? SHOPIFY_STOREFRONT_TOKEN.substring(0, 10) + '...' : '');
+
+  if (!isShopifyConfigured) {
+    throw new Error(
+      'Shopify is not configured. Missing VITE_SHOPIFY_STORE_URL/VITE_SHOPIFY_STOREFRONT_TOKEN (or VITE_SHOPIFY_STORE_DOMAIN/VITE_SHOPIFY_STOREFRONT_ACCESS_TOKEN).'
+    );
+  }
 
   try {
     // Add timeout to prevent hanging

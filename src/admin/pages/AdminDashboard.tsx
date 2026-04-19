@@ -3,6 +3,7 @@ import { Package, ShoppingCart, Users, TrendingUp } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import StatsCard from '../components/StatsCard';
 import { AdminStats } from '../../types/admin';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface AdminDashboardProps {
@@ -27,7 +28,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/stats', {
+      const response = await fetch(apiUrl('/api/admin/stats'), {
         credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });

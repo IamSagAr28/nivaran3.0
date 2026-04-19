@@ -4,6 +4,7 @@ import AdminLayout from '../components/AdminLayout';
 import ProductForm from '../components/ProductForm';
 import ProductTable from '../components/ProductTable';
 import { AdminProduct } from '../../types/admin';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface ProductsAdminProps {
@@ -26,7 +27,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/products', {
+      const response = await fetch(apiUrl('/api/admin/products'), {
         credentials: 'include',
       });
 
@@ -50,7 +51,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
       const endpoint = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products';
       const method = editingProduct ? 'PUT' : 'POST';
 
-      const response = await fetch(endpoint, {
+      const response = await fetch(apiUrl(endpoint), {
         method,
         credentials: 'include',
         headers: {
@@ -78,7 +79,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
     if (!confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const response = await fetch(`/api/admin/products/${id}`, {
+      const response = await fetch(apiUrl(`/api/admin/products/${id}`), {
         method: 'DELETE',
         credentials: 'include',
       });

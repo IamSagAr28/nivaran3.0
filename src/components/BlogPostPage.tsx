@@ -5,6 +5,7 @@ import { getOptimizedImageUrl } from '../shopify/client';
 import { formatDate } from '../utils/date';
 import { Calendar, User, ArrowLeft } from 'lucide-react';
 import { useRouter } from '../utils/Router';
+import { apiUrl } from '../utils/shopApi';
 
 interface BlogPostPageProps {
     params: {
@@ -24,7 +25,7 @@ const BlogPostPage: React.FC<BlogPostPageProps> = ({ params }) => {
             setLoading(true);
             if (blogHandle && articleHandle) {
                 try {
-                    const response = await fetch(`/api/blogs/article/${articleHandle}`);
+                    const response = await fetch(apiUrl(`/api/blogs/article/${articleHandle}`));
                     if (response.ok) {
                         const data = await response.json();
                         // Ensure compatibility with existing renderer
@@ -41,7 +42,6 @@ const BlogPostPage: React.FC<BlogPostPageProps> = ({ params }) => {
             }
             setLoading(false);
         };
-
         loadArticle();
 
         // Scroll to top on mount

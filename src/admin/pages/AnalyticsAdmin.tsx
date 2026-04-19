@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface AnalyticsAdminProps {
@@ -17,7 +18,7 @@ export function AnalyticsAdmin({ onLogout }: AnalyticsAdminProps) {
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/analytics', {
+      const response = await fetch(apiUrl('/api/admin/analytics'), {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 

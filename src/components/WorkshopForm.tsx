@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle, Loader2, Calendar, Users, Building2, Phone, User, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import axios from 'axios';
+import { apiUrl } from '../utils/shopApi';
 
 interface WorkshopFormProps {
     onClose: () => void;
@@ -29,7 +30,7 @@ export const WorkshopForm: React.FC<WorkshopFormProps> = ({ onClose }) => {
         setIsSubmitting(true);
         setError(null);
         try {
-            await axios.post('/api/workshops/register', data);
+            await axios.post(apiUrl('/api/workshops/register'), data, { withCredentials: true });
 
             setIsSuccess(true);
             setTimeout(() => {

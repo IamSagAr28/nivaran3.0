@@ -1,7 +1,13 @@
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+const RAW_BASE_URL = import.meta.env.VITE_API_URL || '';
+export const API_BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 
-async function apiFetch(path: string, options: RequestInit = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+export function apiUrl(path: string) {
+  // Expect `path` to start with '/'. Keep local-dev working when API_BASE_URL is empty.
+  return `${API_BASE_URL}${path}`;
+}
+
+export async function apiFetch(path: string, options: RequestInit = {}) {
+  const res = await fetch(apiUrl(path), {
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,

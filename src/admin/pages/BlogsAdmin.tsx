@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Search, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
+import { apiUrl } from '../../utils/shopApi';
 
 type BlogRow = {
   id: number;
@@ -48,7 +49,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/blogs/admin', { credentials: 'include' });
+      const res = await fetch(apiUrl('/api/blogs/admin'), { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load blogs');
       const data = await res.json();
       setBlogs(Array.isArray(data) ? data : []);
@@ -134,7 +135,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
       const url = isEdit ? `/api/blogs/admin/${editingId}` : '/api/blogs/admin';
       const method = isEdit ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await fetch(apiUrl(url), {
         method,
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -158,7 +159,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
 
     try {
       setError(null);
-      const res = await fetch(`/api/blogs/admin/${id}`, {
+      const res = await fetch(apiUrl(`/api/blogs/admin/${id}`), {
         method: 'DELETE',
         credentials: 'include',
       });

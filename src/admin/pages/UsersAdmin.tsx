@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import { AdminUser } from '../../types/admin';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface UsersAdminProps {
@@ -22,7 +23,7 @@ export function UsersAdmin({ onLogout }: UsersAdminProps) {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch(apiUrl('/api/admin/users'), {
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 
@@ -54,7 +55,7 @@ export function UsersAdmin({ onLogout }: UsersAdminProps) {
     if (!ok) return;
 
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
+      const response = await fetch(apiUrl(`/api/admin/users/${userId}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Search, Filter } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import { AdminOrder } from '../../types/admin';
-import { createShiprocketShipment } from '../../utils/shopApi';
+import { apiUrl, createShiprocketShipment } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface OrdersAdminProps {
@@ -24,7 +24,7 @@ export function OrdersAdmin({ onLogout }: OrdersAdminProps) {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/orders', {
+      const response = await fetch(apiUrl('/api/admin/orders'), {
         credentials: 'include',
       });
 
@@ -44,7 +44,7 @@ export function OrdersAdmin({ onLogout }: OrdersAdminProps) {
 
   const updateOrderStatus = async (orderId: number, status: string) => {
     try {
-      const response = await fetch(`/api/admin/orders/${orderId}/status`, {
+      const response = await fetch(apiUrl(`/api/admin/orders/${orderId}/status`), {
         method: 'PUT',
         credentials: 'include',
         headers: {
