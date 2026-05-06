@@ -3,7 +3,7 @@ import { Header } from '../Header'
 import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
-import { fetchProductById } from '../../utils/shopApi'
+import { apiUrl, fetchProductById } from '../../utils/shopApi'
 import { ShoppingCart, Star, Package, Leaf, Truck, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import '../../styles/ProductDetailPage.css'
 
@@ -55,7 +55,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
       id: String(product.id),
       title: product.title,
       price: product.price,
-      image: product.images?.[0] || '',
+      image: apiUrl(`/api/products/${product.id}/media/0`),
       category: product.category,
       material: product.material,
       quantity: qty,

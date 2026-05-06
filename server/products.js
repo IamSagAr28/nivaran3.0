@@ -75,6 +75,60 @@ router.get('/categories', async (req, res) => {
   }
 });
 
+// GET /api/products/:id/media/:index — serve a single media item (public)
+// This avoids sending huge base64 blobs inside the products list response.
+router.get('/:id/media/:index', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const index = Number.parseInt(req.params.index, 10);
+    if (!Number.isInteger(index) || index < 0) {
+      return res.status(400).json({ error: 'Invalid media index' });
+    }
+
+    const row = await db.getAsync('SELECT images FROM products WHERE id = ?', [id]);
+    if (!row) return res.status(404).json({ error: 'Product not found' });
+
+    let images = [];
+    if (typeof row.images === 'string') {
+      try {
+        images = JSON.parse(row.images || '[]');
+      } catch {
+        images = [];
+      }
+    } else if (Array.isArray(row.images)) {
+      images = row.images;
+    }
+
+    const value = images[index];
+    if (typeof value !== 'string' || !value) {
+      return res.status(404).json({ error: 'Media not found' });
+    }
+
+    // If it's an external URL, redirect.
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return res.redirect(302, value);
+    }
+
+    // If it's a data URL, decode base64 and serve bytes.
+    if (value.startsWith('data:')) {
+      const match = value.match(/^data:([^;]+);base64,(.*)$/);
+      if (!match) return res.status(400).json({ error: 'Unsupported data URL format' });
+      const mime = match[1] || 'application/octet-stream';
+      const base64 = match[2] || '';
+      const buffer = Buffer.from(base64, 'base64');
+
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      return res.send(buffer);
+    }
+
+    return res.status(404).json({ error: 'Media not found' });
+  } catch (err) {
+    console.error('GET /api/products/:id/media/:index error:', err);
+    res.status(500).json({ error: 'Failed to fetch media' });
+  }
+});
+
 // GET /api/products/:id — single product (public)
 router.get('/:id', async (req, res) => {
   try {

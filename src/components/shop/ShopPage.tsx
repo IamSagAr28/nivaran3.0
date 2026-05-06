@@ -3,7 +3,7 @@ import { Header } from '../Header'
 import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
-import { fetchProducts, fetchCategories } from '../../utils/shopApi'
+import { apiUrl, fetchProducts, fetchCategories } from '../../utils/shopApi'
 
 
 interface Product {
@@ -88,7 +88,7 @@ export default function ShopPage() {
       id: String(p.id),
       title: p.title,
       price: p.price,
-      image: p.images?.[0] || '',
+      image: apiUrl(`/api/products/${p.id}/media/0`),
       category: p.category,
       material: p.material,
     })
@@ -255,18 +255,14 @@ export default function ShopPage() {
                       onClick={() => navigateTo(`/product/${p.id}`)}
                       className="product-media"
                     >
-                      {p.images?.[0] ? (
-                        <img
-                          src={p.images[0]}
-                          alt={p.title}
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="300"%3E%3Crect fill="%23E5E5E5" width="300" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="24" fill="%23999"%3E🌿%3C/text%3E%3C/svg%3E'
-                          }}
-                        />
-                      ) : (
-                        <div className="media-fallback">🌿</div>
-                      )}
+                      <img
+                        src={apiUrl(`/api/products/${p.id}/media/0`)}
+                        alt={p.title}
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="300"%3E%3Crect fill="%23E5E5E5" width="300" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="24" fill="%23999"%3E🌿%3C/text%3E%3C/svg%3E'
+                        }}
+                      />
                       {p.stock === 0 && (
                         <div className="stock-overlay">Out of Stock</div>
                       )}
