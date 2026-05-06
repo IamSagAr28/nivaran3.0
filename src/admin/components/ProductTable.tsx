@@ -1,7 +1,41 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Edit2, Trash2 } from 'lucide-react';
 import { AdminProduct } from '../../types/admin';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
+
+function ProductThumbnail({ product }: { product: AdminProduct }) {
+  const [failed, setFailed] = useState(false);
+
+  let images: string[] = [];
+  if (typeof product.images === 'string') {
+    try {
+      images = JSON.parse(product.images);
+    } catch {
+      images = [];
+    }
+  } else if (Array.isArray(product.images)) {
+    images = product.images;
+  }
+
+  if (failed) {
+    return <div className="product-no-image">No image</div>;
+  }
+
+  const src = images.length > 0 ? images[0] : apiUrl(`/api/products/${product.id}/media/0`);
+
+  return typeof src === 'string' && (src.startsWith('data:video') || src.includes('.mp4')) ? (
+    <video src={src} className="product-thumbnail" muted playsInline />
+  ) : (
+    <img
+      src={src}
+      alt={product.title}
+      className="product-thumbnail"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 interface ProductTableProps {
   products: AdminProduct[];
@@ -34,33 +68,10 @@ export function ProductTable({ products, onEdit, onDelete }: ProductTableProps) 
         </thead>
         <tbody>
           {products.map((product) => {
-            let images: string[] = [];
-            if (typeof product.images === 'string') {
-              try {
-                images = JSON.parse(product.images);
-              } catch {
-                images = [];
-              }
-            } else if (Array.isArray(product.images)) {
-              images = product.images;
-            }
-
             return (
               <tr key={product.id}>
                 <td className="product-image-cell">
-                  {images.length > 0 ? (
-                    typeof images[0] === 'string' && (images[0].startsWith('data:video') || images[0].includes('.mp4')) ? (
-                      <video src={images[0]} className="product-thumbnail" muted playsInline />
-                    ) : (
-                      <img
-                        src={images[0]}
-                        alt={product.title}
-                        className="product-thumbnail"
-                      />
-                    )
-                  ) : (
-                    <div className="product-no-image">No image</div>
-                  )}
+                  <ProductThumbnail product={product} />
                 </td>
                 <td className="product-name">{product.title}</td>
                 <td>{product.category}</td>
