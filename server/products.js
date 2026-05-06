@@ -21,8 +21,13 @@ function parseProduct(p) {
 // GET /api/products — list all (public)
 router.get('/', async (req, res) => {
   try {
-    const { category, featured, search, sort = 'newest', limit, offset } = req.query;
-    let sql = 'SELECT * FROM products WHERE 1=1';
+    const { category, featured, search, sort = 'newest', limit, offset, includeImages } = req.query;
+    const withImages = includeImages === '1' || includeImages === 'true';
+    const selectCols = withImages
+      ? '*'
+      : 'id, title, description, price, compare_at_price, category, colors, material, stock, featured, created_at, updated_at';
+
+    let sql = `SELECT ${selectCols} FROM products WHERE 1=1`;
     const params = [];
 
     if (category && category !== 'All') {

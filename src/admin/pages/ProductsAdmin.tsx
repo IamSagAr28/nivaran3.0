@@ -46,6 +46,30 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
     }
   };
 
+  const fetchProductForEdit = async (id: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(apiUrl(`/api/admin/products/${id}`), {
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEditingProduct(data);
+        setShowForm(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to load product');
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+      alert('Failed to load product details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAddProduct = async (formData: Partial<AdminProduct>) => {
     try {
       const endpoint = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products';
@@ -161,9 +185,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
             <ProductTable
               products={paginatedProducts}
               onEdit={(product) => {
-                setEditingProduct(product);
-                setShowForm(true);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                fetchProductForEdit(product.id);
               }}
               onDelete={handleDeleteProduct}
             />

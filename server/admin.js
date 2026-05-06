@@ -100,10 +100,27 @@ router.delete('/users/:id', requireAdmin, async (req, res) => {
 // GET /api/admin/products
 router.get('/products', requireAdmin, async (req, res) => {
   try {
-    const rows = await db.allAsync('SELECT * FROM products ORDER BY created_at DESC');
+    const { includeImages } = req.query;
+    const withImages = includeImages === '1' || includeImages === 'true';
+    const selectCols = withImages
+      ? '*'
+      : 'id, title, description, price, compare_at_price, category, colors, material, stock, featured, created_at, updated_at';
+
+    const rows = await db.allAsync(`SELECT ${selectCols} FROM products ORDER BY created_at DESC`);
     res.json({ products: rows.map(parseProduct) });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// GET /api/admin/products/:id
+router.get('/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const product = await db.getAsync('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(parseProduct(product));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch product' });
   }
 });
 
@@ -140,13 +157,19 @@ router.post('/products', requireAdmin, async (req, res) => {
       db.run(sql, params, async function(err) {
         if (err) return res.status(500).json({ error: 'Failed to create product', detail: err.message });
         const newProduct = await db.getAsync('SELECT * FROM products WHERE id = ?', [this.lastID]);
-        res.status(201).json(parseProduct(newProduct));
+        const created = parseProduct(newProduct);
+        // Keep response small; images can be fetched via GET /api/admin/products/:id
+        created.images = [];
+        res.status(201).json(created);
       });
     } else {
       db.run(sql, params, async function(err) {
         if (err) return res.status(500).json({ error: 'Failed to create product', detail: err.message });
         const newProduct = await db.getAsync('SELECT * FROM products WHERE id = ?', [this.lastID]);
-        res.status(201).json(parseProduct(newProduct));
+        const created = parseProduct(newProduct);
+        // Keep response small; images can be fetched via GET /api/admin/products/:id
+        created.images = [];
+        res.status(201).json(created);
       });
     }
   } catch (err) {
@@ -182,7 +205,10 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
     db.run(sql, params, async function(err) {
       if (err) return res.status(500).json({ error: 'Failed to update product', detail: err.message });
       const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
-      res.json(parseProduct(updated));
+      const parsed = parseProduct(updated);
+      // Keep response small; images can be fetched via GET /api/admin/products/:id
+      parsed.images = [];
+      res.json(parsed);
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update product' });
