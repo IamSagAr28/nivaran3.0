@@ -24,6 +24,7 @@ export function UsersAdmin({ onLogout }: UsersAdminProps) {
     try {
       setLoading(true);
       const response = await fetch(apiUrl('/api/admin/users'), {
+        credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 
@@ -57,6 +58,7 @@ export function UsersAdmin({ onLogout }: UsersAdminProps) {
     try {
       const response = await fetch(apiUrl(`/api/admin/users/${userId}`), {
         method: 'DELETE',
+        credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 

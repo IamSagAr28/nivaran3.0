@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const axios = require('axios');
 const db = require('./database');
 const router = express.Router();
+const { verifyAdminToken } = require('./utils/adminToken');
 
 const BREVO_API_KEY = (process.env.BREVO_API_KEY || '').trim();
 const BREVO_LIST_ID_RAW = (process.env.BREVO_LIST_ID || '').toString().trim();
@@ -295,7 +296,12 @@ function requireAdmin(req, res, next) {
     const auth = req.headers.authorization;
     if (auth && auth.startsWith('Bearer ')) {
         const token = auth.slice(7);
-        if (token === req.session?.adminToken) return next();
+        const payload = verifyAdminToken(token);
+        if (payload) {
+            req.adminId = payload.adminId;
+            req.adminUsername = payload.username;
+            return next();
+        }
     }
     return res.status(401).json({ error: 'Unauthorized. Admin access required.' });
 }

@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const db = require('./database');
 const shiprocket = require('./shiprocket');
+const { signAdminToken, verifyAdminToken } = require('./utils/adminToken');
 
 // Helper: parse JSON fields
 function parseProduct(p) {
@@ -22,14 +23,24 @@ function parseProduct(p) {
 
 // --- Admin Auth Middleware ---
 function requireAdmin(req, res, next) {
-  if (req.session && req.session.adminId) return next();
-  // Check Authorization header (Bearer token with admin session)
+  if (req.session && req.session.adminId) {
+    req.adminId = req.session.adminId;
+    req.adminUsername = req.session.adminUsername;
+    return next();
+  }
+
   const auth = req.headers.authorization;
   if (auth && auth.startsWith('Bearer ')) {
     const token = auth.slice(7);
-    if (token === req.session?.adminToken) return next();
+    const payload = verifyAdminToken(token);
+    if (payload) {
+      req.adminId = payload.adminId;
+      req.adminUsername = payload.username;
+      return next();
+    }
   }
-  res.status(401).json({ error: 'Unauthorized. Admin access required.' });
+
+  return res.status(401).json({ error: 'Unauthorized. Admin access required.' });
 }
 
 // POST /api/admin/login
@@ -45,14 +56,14 @@ router.post('/login', async (req, res) => {
     const valid = bcrypt.compareSync(password, admin.password_hash);
     if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
-    // Generate a simple token tied to this session
-    const adminToken = require('crypto').randomBytes(32).toString('hex');
+    // Generate a signed token (works even when cookies are blocked)
+    const adminToken = signAdminToken({ adminId: admin.id, username: admin.username });
     
     req.session.adminId = admin.id;
     req.session.adminUsername = admin.username;
     req.session.adminToken = adminToken;
     
-    res.json({ success: true, username: admin.username, token: adminToken });
+    res.json({ success: true, adminId: admin.id, username: admin.username, token: adminToken });
   } catch (err) {
     console.error('Admin login error:', err);
     res.status(500).json({ error: 'Login failed' });
@@ -63,6 +74,7 @@ router.post('/login', async (req, res) => {
 router.post('/logout', (req, res) => {
   req.session.adminId = null;
   req.session.adminUsername = null;
+  req.session.adminToken = null;
   res.json({ success: true });
 });
 
@@ -397,7 +409,8 @@ router.post('/change-password', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'Both passwords required' });
 
   try {
-    const admin = await db.getAsync('SELECT * FROM admin_users WHERE id = ?', [req.session.adminId]);
+    const adminId = req.adminId || req.session?.adminId;
+    const admin = await db.getAsync('SELECT * FROM admin_users WHERE id = ?', [adminId]);
     if (!admin) return res.status(404).json({ error: 'Admin not found' });
 
     const valid = bcrypt.compareSync(currentPassword, admin.password_hash);

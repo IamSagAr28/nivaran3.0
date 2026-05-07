@@ -26,6 +26,7 @@ export function OrdersAdmin({ onLogout }: OrdersAdminProps) {
       setLoading(true);
       const response = await fetch(apiUrl('/api/admin/orders'), {
         credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
 
       if (response.ok) {
@@ -49,6 +50,7 @@ export function OrdersAdmin({ onLogout }: OrdersAdminProps) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
         },
         body: JSON.stringify({ status }),
       });

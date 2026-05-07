@@ -1,6 +1,7 @@
 ﻿const express = require('express');
 const router = express.Router();
 const db = require('./database');
+const { verifyAdminToken } = require('./utils/adminToken');
 
 // --- Admin Auth Middleware ---
 function requireAdmin(req, res, next) {
@@ -8,7 +9,12 @@ function requireAdmin(req, res, next) {
   const auth = req.headers.authorization;
   if (auth && auth.startsWith('Bearer ')) {
     const token = auth.slice(7);
-    if (token === req.session?.adminToken) return next();
+    const payload = verifyAdminToken(token);
+    if (payload) {
+      req.adminId = payload.adminId;
+      req.adminUsername = payload.username;
+      return next();
+    }
   }
   return res.status(401).json({ error: 'Unauthorized. Admin access required.' });
 }

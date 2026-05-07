@@ -31,6 +31,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
       setSettingsLoading(true);
       setSettingsMsg(null);
       const res = await fetch(apiUrl('/api/newsletter/admin/settings'), {
+        credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
       if (!res.ok) {
@@ -52,6 +53,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
       setSettingsMsg(null);
       const res = await fetch(apiUrl('/api/newsletter/admin/settings'), {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
@@ -79,6 +81,7 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
       if (status !== 'all') params.set('status', status);
 
       const res = await fetch(apiUrl(`/api/newsletter/admin/subscribers?${params.toString()}`), {
+        credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 
@@ -113,7 +116,31 @@ export default function NewsletterAdmin({ onLogout }: { onLogout: () => void }) 
   }, [rows, search, status]);
 
   const downloadCsv = () => {
-    window.open(apiUrl('/api/newsletter/admin/export.csv'), '_blank');
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/newsletter/admin/export.csv'), {
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.error || 'Failed to download CSV');
+        }
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'newsletter-subscribers.csv';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (e: any) {
+        setError(e?.message || 'Failed to download CSV');
+      }
+    })();
   };
 
   return (

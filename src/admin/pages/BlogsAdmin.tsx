@@ -49,7 +49,10 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(apiUrl('/api/blogs/admin'), { credentials: 'include' });
+      const res = await fetch(apiUrl('/api/blogs/admin'), {
+        credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
+      });
       if (!res.ok) throw new Error('Failed to load blogs');
       const data = await res.json();
       setBlogs(Array.isArray(data) ? data : []);
@@ -137,7 +140,10 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
 
       const res = await fetch(apiUrl(url), {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
+        },
         credentials: 'include',
         body: JSON.stringify(payload),
       });
@@ -162,6 +168,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
       const res = await fetch(apiUrl(`/api/blogs/admin/${id}`), {
         method: 'DELETE',
         credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

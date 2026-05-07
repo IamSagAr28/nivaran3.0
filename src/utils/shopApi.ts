@@ -6,10 +6,55 @@ export function apiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
+function safeGetAdminToken(): string | null {
+  try {
+    return localStorage.getItem('adminToken');
+  } catch {
+    return null;
+  }
+}
+
+function normalizeHeaders(headers: RequestInit['headers']): Record<string, string> {
+  if (!headers) return {};
+  if (headers instanceof Headers) {
+    const out: Record<string, string> = {};
+    headers.forEach((v, k) => {
+      out[k] = v;
+    });
+    return out;
+  }
+  if (Array.isArray(headers)) {
+    return Object.fromEntries(headers);
+  }
+  return headers as Record<string, string>;
+}
+
+function shouldAttachAdminToken(path: string) {
+  if (!path.startsWith('/api/')) return false;
+  if (path.startsWith('/api/admin/login')) return false;
+  return (
+    path.startsWith('/api/admin') ||
+    path.startsWith('/api/newsletter/admin') ||
+    path.startsWith('/api/blogs/admin') ||
+    path.startsWith('/api/hero-slides/admin')
+  );
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
+  const extraHeaders = normalizeHeaders(options.headers);
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  };
+
+  const token = safeGetAdminToken();
+  if (token && shouldAttachAdminToken(path) && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   const res = await fetch(apiUrl(path), {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
     ...options,
   });
   const data = await res.json().catch(() => ({}));

@@ -19,6 +19,7 @@ export function AnalyticsAdmin({ onLogout }: AnalyticsAdminProps) {
     try {
       setLoading(true);
       const response = await fetch(apiUrl('/api/admin/analytics'), {
+        credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` },
       });
 

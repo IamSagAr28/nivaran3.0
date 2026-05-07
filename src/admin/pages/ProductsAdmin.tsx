@@ -29,6 +29,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
       setLoading(true);
       const response = await fetch(apiUrl('/api/admin/products'), {
         credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
 
       if (response.ok) {
@@ -51,6 +52,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
       setLoading(true);
       const response = await fetch(apiUrl(`/api/admin/products/${id}`), {
         credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
 
       if (response.ok) {
@@ -80,6 +82,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}`,
         },
         body: JSON.stringify(formData),
       });
@@ -106,6 +109,7 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
       const response = await fetch(apiUrl(`/api/admin/products/${id}`), {
         method: 'DELETE',
         credentials: 'include',
+        headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
 
       if (response.ok) {
