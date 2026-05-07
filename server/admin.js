@@ -80,7 +80,10 @@ router.post('/logout', (req, res) => {
 
 // GET /api/admin/me
 router.get('/me', requireAdmin, (req, res) => {
-  res.json({ username: req.session.adminUsername });
+  res.json({
+    adminId: req.adminId || req.session?.adminId || null,
+    username: req.adminUsername || req.session?.adminUsername || null,
+  });
 });
 
 // ===================== USERS ======================
