@@ -89,6 +89,16 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// Body-parser error handler (e.g. payload too large)
+app.use((err, req, res, next) => {
+  if (err && (err.type === 'entity.too.large' || err.status === 413)) {
+    return res.status(413).json({
+      error: 'Uploaded media is too large. Please use smaller files or fewer uploads.',
+    });
+  }
+  return next(err);
+});
+
 // Session Middleware
 app.use(sessionMiddleware);
 

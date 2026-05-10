@@ -167,22 +167,23 @@ router.post('/products', requireAdmin, async (req, res) => {
       const pgSql = `INSERT INTO products 
         (title, description, price, compare_at_price, images, category, colors, material, stock, featured)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`;
-      const result = await require('./database').allAsync ? null : null;
-      // fallback to run
-      db.run(sql, params, async function(err) {
-        if (err) return res.status(500).json({ error: 'Failed to create product', detail: err.message });
-        const newProduct = await db.getAsync('SELECT * FROM products WHERE id = ?', [this.lastID]);
-        const created = parseProduct(newProduct);
-        // Keep response small; images can be fetched via GET /api/admin/products/:id
-        created.images = [];
-        res.status(201).json(created);
-      });
+      
+      try {
+        const result = await db.getAsync(pgSql, params);
+        const created = parseProduct(result);
+        created.images = []; // Keep response small
+        return res.status(201).json(created);
+      } catch (pgErr) {
+        console.error('Postgres INSERT error:', pgErr);
+        // Fallback to generic run for other cases if needed, or just error out
+        return res.status(500).json({ error: 'Failed to create product with Postgres', detail: pgErr.message });
+      }
     } else {
+      // SQLite branch
       db.run(sql, params, async function(err) {
         if (err) return res.status(500).json({ error: 'Failed to create product', detail: err.message });
         const newProduct = await db.getAsync('SELECT * FROM products WHERE id = ?', [this.lastID]);
         const created = parseProduct(newProduct);
-        // Keep response small; images can be fetched via GET /api/admin/products/:id
         created.images = [];
         res.status(201).json(created);
       });
