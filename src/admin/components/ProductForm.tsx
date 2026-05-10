@@ -124,8 +124,12 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           if (v?.color) stockMap[String(v.color)] = Number(v.stock || 0);
         }
       } else if (colorsArray.length) {
+        // Back-compat: older products may have colors + total stock, but no variants yet.
+        // Preserve the current total stock by putting it into the first color.
         for (const c of colorsArray) stockMap[String(c)] = 0;
-        (productObj as any).variants = JSON.stringify(colorsArray.map(c => ({ color: c, stock: 0 })));
+        const existingTotal = Number((product as any).stock ?? 0);
+        if (colorsArray[0]) stockMap[String(colorsArray[0])] = Number.isFinite(existingTotal) ? Math.max(0, existingTotal) : 0;
+        (productObj as any).variants = JSON.stringify(colorsArray.map(c => ({ color: c, stock: Number(stockMap[String(c)] || 0) })));
       }
 
       const totalVariantStock = Object.values(stockMap).reduce((sum, n) => sum + Math.max(0, Number(n || 0)), 0);
