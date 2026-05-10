@@ -15,6 +15,7 @@ function parseProduct(p) {
     featured: p.featured == null ? p.featured : Number(p.featured),
     images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
+      variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
   };
 }
 
@@ -23,9 +24,9 @@ router.get('/', async (req, res) => {
   try {
     const { category, featured, search, sort = 'newest', limit, offset, includeImages } = req.query;
     const withImages = includeImages === '1' || includeImages === 'true';
-    const selectCols = withImages
-      ? '*'
-      : 'id, title, description, price, compare_at_price, category, colors, material, stock, featured, created_at, updated_at';
+      const selectCols = withImages
+        ? '*'
+        : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, created_at, updated_at';
 
     let sql = `SELECT ${selectCols} FROM products WHERE 1=1`;
     const params = [];

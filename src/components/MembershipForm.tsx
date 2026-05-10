@@ -36,7 +36,7 @@ export function MembershipForm({ plan, onBack }: { plan: any, onBack: () => void
 
             // Add Membership to our local shop cart
             addToCart({
-                id: `membership_${btoa(plan.title).substring(0, 10)}_${btoa(selectedState).substring(0, 5)}`,
+                productId: `membership_${btoa(plan.title).substring(0, 10)}_${btoa(selectedState).substring(0, 5)}`,
                 title: `${plan.title}`,
                 price: price,
                 image: '', // Can be empty or a generic box icon URL

@@ -65,11 +65,14 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     compare_at_price: 0,
     category: '',
     colors: '[]',
+    variants: '[]',
     material: '',
     stock: 0,
     featured: false,
     images: '[]',
   });
+
+  const [variantStocks, setVariantStocks] = useState<Record<string, number>>({});
 
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -90,10 +93,78 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         imagesArray = product.images;
         productObj.images = JSON.stringify(product.images);
       }
+
+      let colorsArray: string[] = [];
+      if (typeof product.colors === 'string') {
+        try {
+          colorsArray = JSON.parse(product.colors);
+        } catch {
+          colorsArray = [];
+        }
+      } else if (Array.isArray(product.colors)) {
+        colorsArray = product.colors;
+        productObj.colors = JSON.stringify(product.colors);
+      }
+
+      let variantsArray: Array<{ color: string; stock: number }> = [];
+      if (typeof (product as any).variants === 'string') {
+        try {
+          variantsArray = JSON.parse((product as any).variants);
+        } catch {
+          variantsArray = [];
+        }
+      } else if (Array.isArray((product as any).variants)) {
+        variantsArray = (product as any).variants;
+        (productObj as any).variants = JSON.stringify((product as any).variants);
+      }
+
+      const stockMap: Record<string, number> = {};
+      if (variantsArray.length) {
+        for (const v of variantsArray) {
+          if (v?.color) stockMap[String(v.color)] = Number(v.stock || 0);
+        }
+      } else if (colorsArray.length) {
+        for (const c of colorsArray) stockMap[String(c)] = 0;
+        (productObj as any).variants = JSON.stringify(colorsArray.map(c => ({ color: c, stock: 0 })));
+      }
+
+      const totalVariantStock = Object.values(stockMap).reduce((sum, n) => sum + Math.max(0, Number(n || 0)), 0);
+      if (colorsArray.length) {
+        productObj.stock = totalVariantStock;
+      }
+
       setFormData(productObj);
       setImagePreviews(imagesArray);
+      setVariantStocks(stockMap);
     }
   }, [product]);
+
+  const getColorsArray = () => {
+    if (Array.isArray(formData.colors)) return formData.colors.map(String);
+    if (typeof formData.colors === 'string') {
+      try {
+        const parsed = JSON.parse(formData.colors);
+        return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+      } catch {
+        return formData.colors.split(',').map(c => c.trim()).filter(Boolean);
+      }
+    }
+    return [];
+  };
+
+  const syncVariantsToForm = (colorsArray: string[], nextStocks: Record<string, number>) => {
+    const variants = colorsArray.map(c => ({
+      color: c,
+      stock: Math.max(0, Number(nextStocks[c] ?? 0)),
+    }));
+    const total = variants.reduce((sum, v) => sum + (Number.isFinite(v.stock) ? v.stock : 0), 0);
+    setFormData(prev => ({
+      ...prev,
+      colors: JSON.stringify(colorsArray),
+      variants: JSON.stringify(variants),
+      stock: total,
+    }));
+  };
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
@@ -103,6 +174,29 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       ...formData,
       [name]: type === 'number' ? parseFloat(value) : type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
     });
+  };
+
+  const handleColorsChange = (raw: string) => {
+    const colorsArray = raw.split(',').map(c => c.trim()).filter(Boolean);
+    const nextStocks: Record<string, number> = {};
+    for (const c of colorsArray) {
+      nextStocks[c] = variantStocks[c] ?? 0;
+    }
+    setVariantStocks(nextStocks);
+    if (colorsArray.length) {
+      syncVariantsToForm(colorsArray, nextStocks);
+    } else {
+      setFormData(prev => ({ ...prev, colors: '[]', variants: '[]' }));
+    }
+  };
+
+  const updateVariantStock = (color: string, stock: number) => {
+    const colorsArray = getColorsArray();
+    const nextStocks = { ...variantStocks, [color]: Math.max(0, Number(stock || 0)) };
+    setVariantStocks(nextStocks);
+    if (colorsArray.length) {
+      syncVariantsToForm(colorsArray, nextStocks);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,6 +307,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
         <div className="form-section">
           <h3>Pricing & Inventory</h3>
+          {getColorsArray().length > 0 && (
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>
+              Per-color stock is enabled. Total stock is calculated automatically.
+            </p>
+          )}
           <div className="form-row">
             <div className="form-group">
               <label>Price (₹) *</label>
@@ -244,8 +343,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 name="stock"
                 value={formData.stock || 0}
                 onChange={handleInputChange}
-                required
+                required={getColorsArray().length === 0}
                 min="0"
+                disabled={getColorsArray().length > 0}
               />
             </div>
           </div>
@@ -296,16 +396,27 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                       })()
                     : ''
                 }
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    colors: JSON.stringify(e.target.value.split(',').map(c => c.trim())),
-                  })
-                }
+                onChange={(e) => handleColorsChange(e.target.value)}
                 placeholder="e.g., Red, Blue, Green"
               />
             </div>
           </div>
+
+          {getColorsArray().length > 0 && (
+            <div className="form-row">
+              {getColorsArray().map((color) => (
+                <div key={color} className="form-group">
+                  <label>Stock for {color}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={variantStocks[color] ?? 0}
+                    onChange={(e) => updateVariantStock(color, parseInt(e.target.value) || 0)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="form-row">
             <div className="form-group checkbox">

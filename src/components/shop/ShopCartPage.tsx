@@ -626,7 +626,9 @@ payment-options {
     const orderPayload = {
       ...form,
       items: items.map(i => ({ 
-        id: i.id, 
+        id: i.productId,
+        productId: i.productId,
+        variantColor: i.variantColor,
         title: i.title, 
         price: i.price, 
         quantity: i.quantity, 
@@ -958,7 +960,7 @@ payment-options {
                 <div key={item.id} className="cart-item">
                   <div
                     className="cart-img"
-                    onClick={() => navigateTo(`/product/${item.id}`)}
+                    onClick={() => navigateTo(`/product/${item.productId}`)}
                   >
                     {item.image ? (
                       <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
@@ -969,10 +971,11 @@ payment-options {
                   <div className="flex-1 min-w-0">
                     <h3
                       className="cart-title-link cursor-pointer hover:underline"
-                      onClick={() => navigateTo(`/product/${item.id}`)}
+                      onClick={() => navigateTo(`/product/${item.productId}`)}
                     >
                       {item.title}
                     </h3>
+                    {item.variantColor && <p className="cart-meta">Color: {item.variantColor}</p>}
                     {item.material && <p className="cart-meta">{item.material}</p>}
                     <div className="cart-chip">Easy returns</div>
                     <p className="cart-price">₹{(item.price * item.quantity).toFixed(2)}</p>

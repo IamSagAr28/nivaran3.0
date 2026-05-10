@@ -94,6 +94,7 @@ function initPgDb() {
       images TEXT DEFAULT '[]',
       category TEXT,
       colors TEXT DEFAULT '[]',
+      variants TEXT DEFAULT '[]',
       material TEXT,
       stock INTEGER DEFAULT 0,
       featured INTEGER DEFAULT 0,
@@ -212,6 +213,12 @@ function initPgDb() {
       return db.query(alterSlides);
     })
     .then(() => {
+      const alterProducts = `
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS variants TEXT DEFAULT '[]';
+      `;
+      return db.query(alterProducts);
+    })
+    .then(() => {
       console.log('✅ PostgreSQL tables initialized.');
       seedAdminUser();
       seedHeroSlides();
@@ -285,13 +292,22 @@ function initSqliteDb() {
       images TEXT DEFAULT '[]',
       category TEXT,
       colors TEXT DEFAULT '[]',
+      variants TEXT DEFAULT '[]',
       material TEXT,
       stock INTEGER DEFAULT 0,
       featured INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
-      if (!err) seedAdminUser();
+      if (!err) {
+        // Ensure new columns exist for older SQLite DBs.
+        db.all('PRAGMA table_info(products)', (e, cols) => {
+          if (!e && Array.isArray(cols) && !cols.some(c => c.name === 'variants')) {
+            db.run("ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'");
+          }
+        });
+        seedAdminUser();
+      }
     });
 
     db.run(`CREATE TABLE IF NOT EXISTS orders (

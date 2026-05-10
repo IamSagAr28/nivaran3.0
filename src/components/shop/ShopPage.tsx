@@ -14,6 +14,7 @@ interface Product {
   images: string[]
   category: string
   colors: string[]
+  variants?: Array<{ color: string; stock: number }>
   material: string
   stock: number
   featured: number
@@ -84,13 +85,19 @@ export default function ShopPage() {
 
   const handleAddToCart = (e: React.MouseEvent, p: Product) => {
     e.stopPropagation()
+    const variants = Array.isArray(p.variants) ? p.variants : []
+    const selectedVariantColor = variants.length
+      ? (variants.find(v => Number(v.stock || 0) > 0)?.color || variants[0]?.color)
+      : undefined
+
     addToCart({
-      id: String(p.id),
+      productId: String(p.id),
       title: p.title,
       price: p.price,
       image: apiUrl(`/api/products/${p.id}/media/0`),
       category: p.category,
       material: p.material,
+      variantColor: selectedVariantColor,
     })
     const id = String(p.id)
     setAddedIds(prev => new Set([...prev, id]))

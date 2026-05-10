@@ -16,6 +16,7 @@ interface Product {
   images: string[]
   category: string
   colors: string[]
+  variants?: Array<{ color: string; stock: number }>
   material: string
   stock: number
   featured: number
@@ -43,7 +44,12 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
     fetchProductById(id)
       .then(p => {
         setProduct(p)
-        if (p.colors?.length) setSelectedColor(p.colors[0])
+        if (Array.isArray(p.variants) && p.variants.length) {
+          const firstAvailable = p.variants.find((v: any) => Number(v?.stock ?? 0) > 0);
+          setSelectedColor(firstAvailable?.color || p.variants[0]?.color || '')
+        } else if (p.colors?.length) {
+          setSelectedColor(p.colors[0])
+        }
       })
       .catch(() => setError('Product not found.'))
       .finally(() => setLoading(false))
@@ -51,13 +57,18 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
 
   const handleAddToCart = () => {
     if (!product) return
+
+    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0
+    if (hasVariants && !selectedColor) return
+
     addToCart({
-      id: String(product.id),
+      productId: String(product.id),
       title: product.title,
       price: product.price,
       image: apiUrl(`/api/products/${product.id}/media/0`),
       category: product.category,
       material: product.material,
+      variantColor: hasVariants ? selectedColor : undefined,
       quantity: qty,
     })
     setAdded(true)
@@ -65,7 +76,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
   }
 
   const handleBuyNow = () => {
-    if (!product || product.stock === 0) return
+    if (!product) return
     handleAddToCart()
     // Wait for state update to complete before navigating
     setTimeout(() => navigateTo('/shop-cart'), 100)
@@ -104,6 +115,12 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
   const discount = product.compare_at_price && product.compare_at_price > product.price
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : null
+
+  const variants = Array.isArray(product.variants) ? product.variants : []
+  const colorOptions = variants.length ? variants.map(v => v.color) : (product.colors || [])
+  const selectedVariantStock = variants.length
+    ? Number(variants.find(v => v.color === selectedColor)?.stock ?? 0)
+    : Number(product.stock || 0)
 
   return (
     <div className="product-detail-page">
@@ -201,7 +218,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
             <div className="product-actions-buttons">
               <button
                 onClick={handleAddToCart}
-                disabled={product.stock === 0}
+                disabled={selectedVariantStock === 0 || (variants.length > 0 && !selectedColor)}
                 className={`btn btn-primary ${added ? 'btn-success' : ''}`}
               >
                 <ShoppingCart className="btn-icon" />
@@ -210,7 +227,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
 
               <button
                 onClick={handleBuyNow}
-                disabled={product.stock === 0}
+                disabled={selectedVariantStock === 0 || (variants.length > 0 && !selectedColor)}
                 className="btn btn-secondary"
               >
                 Buy Now
@@ -237,17 +254,17 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
             </div>
 
             <div className="product-stock-status">
-              <div className={`stock-indicator ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`} />
-              <span className={`stock-text ${product.stock > 0 ? 'in-stock' : 'out-of-stock'}`}>
-                {product.stock > 0 ? `In Stock (${product.stock})` : 'Out of Stock'}
+              <div className={`stock-indicator ${selectedVariantStock > 0 ? 'in-stock' : 'out-of-stock'}`} />
+              <span className={`stock-text ${selectedVariantStock > 0 ? 'in-stock' : 'out-of-stock'}`}>
+                {selectedVariantStock > 0 ? `In Stock (${selectedVariantStock})` : 'Out of Stock'}
               </span>
             </div>
 
-            {product.colors?.length > 0 && (
+            {colorOptions?.length > 0 && (
               <div className="product-option-group">
                 <label className="product-option-label">Color: <span className="option-value-text">{selectedColor}</span></label>
                 <div className="product-option-values">
-                  {product.colors.map(color => (
+                  {colorOptions.map(color => (
                     <button
                       key={color}
                       onClick={() => setSelectedColor(color)}
@@ -260,7 +277,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
               </div>
             )}
 
-            {product.stock > 0 && (
+            {selectedVariantStock > 0 && (
               <div className="product-quantity-section">
                 <label className="product-option-label">Quantity</label>
                 <div className="quantity-control">
@@ -272,7 +289,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
                   </button>
                   <span className="quantity-value">{qty}</span>
                   <button
-                    onClick={() => setQty(q => Math.min(product.stock, q + 1))}
+                    onClick={() => setQty(q => Math.min(selectedVariantStock, q + 1))}
                     className="quantity-btn"
                   >
                     +

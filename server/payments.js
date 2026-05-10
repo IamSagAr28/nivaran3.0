@@ -79,6 +79,67 @@ function verifySignature(orderId, paymentId, signature, secret) {
   return expected === signature;
 }
 
+function normalizeColor(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function decrementStockForItems(items) {
+  for (const item of items) {
+    const productId = String(item.productId ?? item.id ?? '');
+    const quantity = Number(item.quantity ?? 0);
+    const selectedColor = item.variantColor ?? item.color ?? item.selectedColor;
+
+    if (!productId || !Number.isFinite(quantity) || quantity <= 0) continue;
+
+    const product = await db.getAsync('SELECT id, stock, variants FROM products WHERE id = ?', [productId]);
+    if (!product) {
+      // Allow non-product cart items (e.g. memberships) to pass through.
+      if (!/^\d+$/.test(productId)) continue;
+      throw new Error('One or more products are unavailable');
+    }
+
+    let variants = [];
+    try {
+      variants = typeof product.variants === 'string' ? JSON.parse(product.variants || '[]') : (product.variants || []);
+    } catch {
+      variants = [];
+    }
+
+    if (Array.isArray(variants) && variants.length) {
+      if (!selectedColor) {
+        throw new Error('Please select a color for all items');
+      }
+      const idx = variants.findIndex(v => normalizeColor(v?.color) === normalizeColor(selectedColor));
+      if (idx < 0) {
+        throw new Error('Selected color is not available for one or more items');
+      }
+      const available = Number(variants[idx]?.stock ?? 0);
+      if (!Number.isFinite(available) || available < quantity) {
+        throw new Error('Insufficient stock for one or more items');
+      }
+
+      variants[idx] = { ...variants[idx], stock: available - quantity };
+      const totalStock = variants.reduce((sum, v) => sum + Math.max(0, Number(v?.stock ?? 0)), 0);
+      const colors = variants.map(v => v.color).filter(Boolean);
+
+      await db.runAsync(
+        'UPDATE products SET variants = ?, colors = ?, stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [JSON.stringify(variants), JSON.stringify(colors), totalStock, productId]
+      );
+    } else {
+      const available = Number(product.stock ?? 0);
+      if (!Number.isFinite(available) || available < quantity) {
+        throw new Error('Insufficient stock for one or more items');
+      }
+
+      await db.runAsync(
+        'UPDATE products SET stock = CASE WHEN stock - ? < 0 THEN 0 ELSE stock - ? END, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [quantity, quantity, productId]
+      );
+    }
+  }
+}
+
 async function insertOrder(orderData, payment) {
   const {
     customer_name, customer_email, customer_phone,
@@ -93,6 +154,9 @@ async function insertOrder(orderData, payment) {
   if (!Array.isArray(items) || items.length === 0) {
     throw new Error('Cart is empty');
   }
+
+  // Validate + decrement stock (supports per-color variants)
+  await decrementStockForItems(items);
 
   const itemsJson = JSON.stringify(items);
   const sql = `INSERT INTO orders 
@@ -113,25 +177,13 @@ async function insertOrder(orderData, payment) {
     notes || ''
   ];
 
-  return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
-      if (err) return reject(err);
-      const orderId = this.lastID;
+  if (process.env.DATABASE_URL) {
+    const row = await db.getAsync(`${sql} RETURNING id`, params);
+    return row?.id;
+  }
 
-      // Optionally update stock
-      for (const item of items) {
-        if (item.id && item.quantity) {
-          db.run(
-            'UPDATE products SET stock = MAX(0, stock - ?) WHERE id = ?',
-            [item.quantity, item.id],
-            () => {}
-          );
-        }
-      }
-
-      resolve(orderId);
-    });
-  });
+  const result = await db.runAsync(sql, params);
+  return result?.lastID;
 }
 
 // Create Razorpay order

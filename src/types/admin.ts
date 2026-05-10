@@ -4,9 +4,10 @@ export interface AdminProduct {
   description: string;
   price: number;
   compare_at_price?: number;
-  images: string;
+  images: string | string[];
   category: string;
-  colors: string;
+  colors: string | string[];
+  variants?: string | Array<{ color: string; stock: number }>;
   material?: string;
   stock: number;
   featured: boolean;

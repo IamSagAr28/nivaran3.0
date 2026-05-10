@@ -18,7 +18,27 @@ function parseProduct(p) {
     featured: p.featured == null ? p.featured : Number(p.featured),
     images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
+    variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
   };
+}
+
+function normalizeVariantsInput(input) {
+  if (input == null || input === '') return [];
+  const raw = typeof input === 'string' ? JSON.parse(input) : input;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map(v => ({
+      color: typeof v?.color === 'string' ? v.color.trim() : '',
+      stock: Number(v?.stock ?? 0),
+    }))
+    .filter(v => v.color);
+}
+
+function normalizeColorsInput(input) {
+  if (input == null || input === '') return [];
+  const raw = typeof input === 'string' ? JSON.parse(input) : input;
+  if (!Array.isArray(raw)) return [];
+  return raw.map(c => String(c).trim()).filter(Boolean);
 }
 
 // --- Admin Auth Middleware ---
@@ -119,7 +139,7 @@ router.get('/products', requireAdmin, async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
     const selectCols = withImages
       ? '*'
-      : 'id, title, description, price, compare_at_price, category, colors, material, stock, featured, created_at, updated_at';
+      : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, created_at, updated_at';
 
     const rows = await db.allAsync(`SELECT ${selectCols} FROM products ORDER BY created_at DESC`);
     res.json({ products: rows.map(parseProduct) });
@@ -141,32 +161,45 @@ router.get('/products/:id', requireAdmin, async (req, res) => {
 
 // POST /api/admin/products
 router.post('/products', requireAdmin, async (req, res) => {
-  const { title, description, price, compare_at_price, images, category, colors, material, stock, featured } = req.body;
+  const { title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured } = req.body;
 
   if (!title || !price) return res.status(400).json({ error: 'Title and price are required' });
 
   try {
     const imagesJson = typeof images === 'string' ? images : JSON.stringify(Array.isArray(images) ? images : []);
-    const colorsJson = typeof colors === 'string' ? colors : JSON.stringify(Array.isArray(colors) ? colors : []);
+    let colorsArr = normalizeColorsInput(colors);
+    const variantsArr = normalizeVariantsInput(variants);
+    let normalizedStock = parseInt(stock) || 0;
+    let variantsJson = JSON.stringify([]);
+
+    if (variantsArr.length) {
+      colorsArr = variantsArr.map(v => v.color);
+      normalizedStock = variantsArr.reduce((sum, v) => sum + Math.max(0, Number(v.stock || 0)), 0);
+      variantsJson = JSON.stringify(
+        variantsArr.map(v => ({ color: v.color, stock: Math.max(0, Number(v.stock || 0)) }))
+      );
+    }
+
+    const colorsJson = JSON.stringify(colorsArr);
 
     const sql = `INSERT INTO products 
-      (title, description, price, compare_at_price, images, category, colors, material, stock, featured)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) `;
     const params = [
       title, description || '',
       parseFloat(price),
       compare_at_price ? parseFloat(compare_at_price) : null,
       imagesJson, category || '',
-      colorsJson, material || '',
-      parseInt(stock) || 0,
+      colorsJson, variantsJson, material || '',
+      normalizedStock,
       featured ? 1 : 0
     ];
 
     // Use INSERT RETURNING for Postgres
     if (process.env.DATABASE_URL) {
       const pgSql = `INSERT INTO products 
-        (title, description, price, compare_at_price, images, category, colors, material, stock, featured)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`;
+        (title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
       
       try {
         const result = await db.getAsync(pgSql, params);
@@ -196,24 +229,37 @@ router.post('/products', requireAdmin, async (req, res) => {
 
 // PUT /api/admin/products/:id
 router.put('/products/:id', requireAdmin, async (req, res) => {
-  const { title, description, price, compare_at_price, images, category, colors, material, stock, featured } = req.body;
+  const { title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured } = req.body;
   const { id } = req.params;
 
   try {
     const imagesJson = typeof images === 'string' ? images : JSON.stringify(Array.isArray(images) ? images : []);
-    const colorsJson = typeof colors === 'string' ? colors : JSON.stringify(Array.isArray(colors) ? colors : []);
+    let colorsArr = normalizeColorsInput(colors);
+    const variantsArr = normalizeVariantsInput(variants);
+    let normalizedStock = parseInt(stock) || 0;
+    let variantsJson = JSON.stringify([]);
+
+    if (variantsArr.length) {
+      colorsArr = variantsArr.map(v => v.color);
+      normalizedStock = variantsArr.reduce((sum, v) => sum + Math.max(0, Number(v.stock || 0)), 0);
+      variantsJson = JSON.stringify(
+        variantsArr.map(v => ({ color: v.color, stock: Math.max(0, Number(v.stock || 0)) }))
+      );
+    }
+
+    const colorsJson = JSON.stringify(colorsArr);
 
     const sql = `UPDATE products SET 
       title=?, description=?, price=?, compare_at_price=?, images=?, 
-      category=?, colors=?, material=?, stock=?, featured=?, updated_at=CURRENT_TIMESTAMP
+      category=?, colors=?, variants=?, material=?, stock=?, featured=?, updated_at=CURRENT_TIMESTAMP
       WHERE id=?`;
     const params = [
       title, description || '',
       parseFloat(price),
       compare_at_price ? parseFloat(compare_at_price) : null,
       imagesJson, category || '',
-      colorsJson, material || '',
-      parseInt(stock) || 0,
+      colorsJson, variantsJson, material || '',
+      normalizedStock,
       featured ? 1 : 0,
       id
     ];
