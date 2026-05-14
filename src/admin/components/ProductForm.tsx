@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, X } from 'lucide-react';
-import { AdminProduct } from '../../types/admin';
+import { Upload, X, Plus, Trash2 } from 'lucide-react';
+import { AdminProduct, Variant, VariantType } from '../../types/admin';
 import '../styles/admin.css';
 
 const MAX_MEDIA_ITEMS = 5;
@@ -66,6 +66,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     category: '',
     colors: '[]',
     variants: '[]',
+    variant_types: '[]',
     material: '',
     stock: 0,
     featured: false,
@@ -73,6 +74,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   });
 
   const [variantStocks, setVariantStocks] = useState<Record<string, number>>({});
+  
+  const [variantTypes, setVariantTypes] = useState<VariantType[]>([]);
+  const [newVariants, setNewVariants] = useState<Variant[]>([]);
 
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -136,6 +140,13 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       if (colorsArray.length) {
         productObj.stock = totalVariantStock;
       }
+      
+      let vTypes: VariantType[] = [];
+      let varts: Variant[] = [];
+      try { vTypes = JSON.parse((product as any).variant_types || '[]'); } catch {}
+      try { varts = JSON.parse((product as any).variants || '[]'); } catch {}
+      setVariantTypes(vTypes);
+      setNewVariants(varts);
 
       setFormData(productObj);
       setImagePreviews(imagesArray);
@@ -262,6 +273,56 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     });
   };
 
+  const handleVariantTypeChange = (index: number, name: string) => {
+    const updated = [...variantTypes];
+    updated[index] = { ...updated[index], name };
+    setVariantTypes(updated);
+  };
+
+  const addVariantType = () => {
+    setVariantTypes([...variantTypes, { name: '', options: [] }]);
+  };
+
+  const removeVariantType = (index: number) => {
+    setVariantTypes(variantTypes.filter((_, i) => i !== index));
+  };
+
+  const generateVariantCombinations = () => {
+    const vTypes = variantTypes.filter(vt => vt.name && vt.options.length > 0);
+    if (vTypes.length === 0) {
+      setNewVariants([]);
+      return;
+    }
+
+    const combinations = vTypes.reduce((acc, vt) => {
+      if (acc.length === 0) {
+        return vt.options.map(opt => ({ [vt.name]: opt }));
+      }
+      return acc.flatMap(combo => 
+        vt.options.map(opt => ({ ...combo, [vt.name]: opt }))
+      );
+    }, [] as Array<Record<string, string>>);
+
+    const updatedVariants = combinations.map(attributes => {
+      const existing = newVariants.find(v => 
+        Object.keys(attributes).every(key => attributes[key] === v.attributes[key]) &&
+        Object.keys(v.attributes).every(key => attributes[key] === v.attributes[key])
+      );
+      return {
+        attributes,
+        price: existing?.price ?? formData.price ?? 0,
+        stock: existing?.stock ?? 0,
+      };
+    });
+    setNewVariants(updatedVariants);
+  };
+
+  const handleVariantDetailChange = (index: number, field: 'price' | 'stock', value: number) => {
+    const updated = [...newVariants];
+    updated[index][field] = value;
+    setNewVariants(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (uploading) {
@@ -270,7 +331,14 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     }
     setSaving(true);
     try {
-      await onSave(formData);
+      const totalStock = newVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+      const finalFormData = {
+        ...formData,
+        variant_types: JSON.stringify(variantTypes),
+        variants: JSON.stringify(newVariants),
+        stock: newVariants.length > 0 ? totalStock : formData.stock,
+      };
+      await onSave(finalFormData);
     } finally {
       setSaving(false);
     }
@@ -381,9 +449,90 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             </div>
           </div>
 
+          <div className="form-section" style={{ marginTop: '20px' }}>
+            <h3>Advanced Variants (Optional)</h3>
+            <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>Define complex options like multiple Sizes and Colors.</p>
+            {variantTypes.map((vt, typeIndex) => (
+              <div key={typeIndex} className="variant-type-section" style={{ marginBottom: '10px' }}>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>Variant Type</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Color, Size"
+                      value={vt.name}
+                      onChange={(e) => handleVariantTypeChange(typeIndex, e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Options (comma-separated)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., Red, Green, Blue"
+                      value={vt.options.join(', ')}
+                      onChange={(e) => {
+                        const updated = [...variantTypes];
+                        updated[typeIndex].options = e.target.value.split(',').map(s => s.trim());
+                        setVariantTypes(updated);
+                      }}
+                    />
+                  </div>
+                  <button type="button" onClick={() => removeVariantType(typeIndex)} className="admin-btn danger-outline small" style={{alignSelf:"flex-end", marginBottom:"5px"}}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="form-row" style={{marginBottom: "20px"}}>
+              <button type="button" onClick={addVariantType} className="admin-btn secondary" style={{marginRight:"10px"}}>
+                <Plus size={16} /> Add Variant Type
+              </button>
+              <button type="button" onClick={generateVariantCombinations} className="admin-btn primary">
+                Generate Combinations
+              </button>
+            </div>
+
+            {newVariants.length > 0 && (
+              <div className="variants-table" style={{overflowX: 'auto'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+                  <thead>
+                    <tr>
+                      {variantTypes.map(vt => vt.name && <th key={vt.name} style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>{vt.name}</th>)}
+                      <th style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>Price</th>
+                      <th style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {newVariants.map((variant, index) => (
+                      <tr key={index}>
+                        {variantTypes.map(vt => vt.name && <td key={vt.name} style={{padding:"8px"}}>{variant.attributes[vt.name]}</td>)}
+                        <td style={{padding:"8px"}}>
+                          <input
+                            type="number"
+                            value={variant.price}
+                            onChange={(e) => handleVariantDetailChange(index, 'price', parseFloat(e.target.value))}
+                            style={{width:"80px"}}
+                          />
+                        </td>
+                        <td style={{padding:"8px"}}>
+                          <input
+                            type="number"
+                            value={variant.stock}
+                            onChange={(e) => handleVariantDetailChange(index, 'stock', parseInt(e.target.value))}
+                            style={{width:"60px"}}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           <div className="form-row">
             <div className="form-group">
-              <label>Colors (comma-separated)</label>
+              <label>Legacy Colors (comma-separated)</label>
               <input
                 type="text"
                 name="colors"

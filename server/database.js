@@ -93,11 +93,22 @@ function initPgDb() {
       compare_at_price DECIMAL(10,2),
       images TEXT DEFAULT '[]',
       category TEXT,
-      colors TEXT DEFAULT '[]',
-      variants TEXT DEFAULT '[]',
       material TEXT,
-      stock INTEGER DEFAULT 0,
       featured INTEGER DEFAULT 0,
+      
+      -- Variant information
+      -- Top-level stock is for products without variants
+      stock INTEGER DEFAULT 0, 
+      
+      -- Defines the types of variants, e.g., [{"name": "Color"}, {"name": "Size"}]
+      variant_types TEXT DEFAULT '[]',
+
+      -- Stores the actual variant combinations, e.g., [{"attributes": {"Color": "Red", "Size": "M"}, "stock": 10, "price": 19.99}]
+      variants TEXT DEFAULT '[]',
+
+      -- Legacy columns, to be phased out
+      colors TEXT DEFAULT '[]',
+      
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -215,6 +226,7 @@ function initPgDb() {
     .then(() => {
       const alterProducts = `
         ALTER TABLE products ADD COLUMN IF NOT EXISTS variants TEXT DEFAULT '[]';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_types TEXT DEFAULT '[]';
       `;
       return db.query(alterProducts);
     })
@@ -291,19 +303,30 @@ function initSqliteDb() {
       compare_at_price REAL,
       images TEXT DEFAULT '[]',
       category TEXT,
-      colors TEXT DEFAULT '[]',
-      variants TEXT DEFAULT '[]',
       material TEXT,
-      stock INTEGER DEFAULT 0,
       featured INTEGER DEFAULT 0,
+
+      -- Variant information
+      stock INTEGER DEFAULT 0, 
+      variant_types TEXT DEFAULT '[]',
+      variants TEXT DEFAULT '[]',
+
+      -- Legacy
+      colors TEXT DEFAULT '[]',
+
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
       if (!err) {
         // Ensure new columns exist for older SQLite DBs.
         db.all('PRAGMA table_info(products)', (e, cols) => {
-          if (!e && Array.isArray(cols) && !cols.some(c => c.name === 'variants')) {
-            db.run("ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'");
+          if (!e && Array.isArray(cols)) {
+            if (!cols.some(c => c.name === 'variants')) {
+              db.run("ALTER TABLE products ADD COLUMN variants TEXT DEFAULT '[]'");
+            }
+            if (!cols.some(c => c.name === 'variant_types')) {
+              db.run("ALTER TABLE products ADD COLUMN variant_types TEXT DEFAULT '[]'");
+            }
           }
         });
         seedAdminUser();

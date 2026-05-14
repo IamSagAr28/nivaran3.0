@@ -15,8 +15,9 @@ interface Product {
   compare_at_price?: number
   images: string[]
   category: string
-  colors: string[]
-  variants?: Array<{ color: string; stock: number }>
+  variants?: Array<{ attributes: Record<string, string>; price: number; stock: number }>
+  variant_types?: Array<{ name: string; options: string[] }>
+  colors?: string[] // legacy
   material: string
   stock: number
   featured: number
@@ -33,7 +34,8 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
   const [selectedImage, setSelectedImage] = useState(0)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
-  const [selectedColor, setSelectedColor] = useState('')
+  const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({})
+  const [selectedLegacyColor, setSelectedLegacyColor] = useState('')
 
   // Get product ID from props or URL
   const pathId = window.location.pathname.split('/').filter(Boolean).pop() || ''
@@ -44,31 +46,63 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
     fetchProductById(id)
       .then(p => {
         setProduct(p)
-        if (Array.isArray(p.variants) && p.variants.length) {
+        if (p.variant_types && p.variant_types.length > 0 && p.variants && p.variants.length > 0) {
+          // New variant system map
+          // Find first available variant
+          let defaultVariant = p.variants.find((v: any) => Number(v?.stock ?? 0) > 0) || p.variants[0];
+          setSelectedAttributes(defaultVariant.attributes || {});
+        } else if (Array.isArray(p.variants) && p.variants.length && p.variants[0].color) {
+          // Transitional variants (e.g. variants array with just {color, stock})
           const firstAvailable = p.variants.find((v: any) => Number(v?.stock ?? 0) > 0);
-          setSelectedColor(firstAvailable?.color || p.variants[0]?.color || '')
+          setSelectedLegacyColor(firstAvailable?.color || p.variants[0]?.color || '')
         } else if (p.colors?.length) {
-          setSelectedColor(p.colors[0])
+          // Pure legacy colors array
+          setSelectedLegacyColor(p.colors[0])
         }
       })
       .catch(() => setError('Product not found.'))
       .finally(() => setLoading(false))
   }, [id])
 
+  const currentVariant = React.useMemo(() => {
+    if (!product || !product.variants) return null;
+    
+    // Look for new variant format using attributes
+    if (Object.keys(selectedAttributes).length > 0) {
+      return product.variants.find(v => {
+        if (!v.attributes) return false;
+        return Object.keys(selectedAttributes).every(k => v.attributes[k] === selectedAttributes[k]);
+      });
+    }
+    
+    // Fallback to legacy color variant
+    if (selectedLegacyColor) {
+      return product.variants.find((v: any) => v.color === selectedLegacyColor);
+    }
+    
+    return null;
+  }, [product, selectedAttributes, selectedLegacyColor]);
+
   const handleAddToCart = () => {
     if (!product) return
 
-    const hasVariants = Array.isArray(product.variants) && product.variants.length > 0
-    if (hasVariants && !selectedColor) return
+    // Figure out variant description for cart
+    let variantDescription = '';
+    if (Object.keys(selectedAttributes).length > 0) {
+      variantDescription = Object.values(selectedAttributes).join(', ');
+    } else if (selectedLegacyColor) {
+      variantDescription = selectedLegacyColor;
+    }
 
     addToCart({
       productId: String(product.id),
       title: product.title,
-      price: product.price,
-      image: apiUrl(`/api/products/${product.id}/media/0`),
+      price: currentVariant?.price ?? product.price,
+      // Fallback display logic for cart item image: We directly use the preview if available
+      image: product.images?.[0] && !product.images[0].startsWith('data:video') ? product.images[0] : (product.images?.[0] || ''),
       category: product.category,
       material: product.material,
-      variantColor: hasVariants ? selectedColor : undefined,
+      variantColor: variantDescription || undefined,
       quantity: qty,
     })
     setAdded(true)
@@ -116,11 +150,13 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
     ? Math.round(((product.compare_at_price - product.price) / product.compare_at_price) * 100)
     : null
 
-  const variants = Array.isArray(product.variants) ? product.variants : []
-  const colorOptions = variants.length ? variants.map(v => v.color) : (product.colors || [])
-  const selectedVariantStock = variants.length
-    ? Number(variants.find(v => v.color === selectedColor)?.stock ?? 0)
+  // Determine stock based on matching variant
+  const selectedVariantStock = currentVariant 
+    ? Number(currentVariant.stock ?? 0)
     : Number(product.stock || 0)
+    
+  // Display price based on matching variant
+  const displayPrice = currentVariant?.price ?? product.price;
 
   return (
     <div className="product-detail-page">
@@ -218,7 +254,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
             <div className="product-actions-buttons">
               <button
                 onClick={handleAddToCart}
-                disabled={selectedVariantStock === 0 || (variants.length > 0 && !selectedColor)}
+                disabled={selectedVariantStock === 0 || (product.variant_types && product.variant_types.length > 0 && Object.keys(selectedAttributes).length !== product.variant_types.length)}
                 className={`btn btn-primary ${added ? 'btn-success' : ''}`}
               >
                 <ShoppingCart className="btn-icon" />
@@ -227,7 +263,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
 
               <button
                 onClick={handleBuyNow}
-                disabled={selectedVariantStock === 0 || (variants.length > 0 && !selectedColor)}
+                disabled={selectedVariantStock === 0 || (product.variant_types && product.variant_types.length > 0 && Object.keys(selectedAttributes).length !== product.variant_types.length)}
                 className="btn btn-secondary"
               >
                 Buy Now
@@ -246,8 +282,8 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
               <h1 className="product-title">{product.title}</h1>
 
               <div className="product-pricing">
-                <span className="product-price">₹{product.price.toFixed(2)}</span>
-                {product.compare_at_price && product.compare_at_price > product.price && (
+                <span className="product-price">₹{displayPrice.toFixed(2)}</span>
+                {product.compare_at_price && product.compare_at_price > displayPrice && (
                   <span className="product-original-price">₹{product.compare_at_price.toFixed(2)}</span>
                 )}
               </div>
@@ -260,21 +296,46 @@ export default function ProductDetailPage({ params }: { params?: { id?: string }
               </span>
             </div>
 
-            {colorOptions?.length > 0 && (
-              <div className="product-option-group">
-                <label className="product-option-label">Color: <span className="option-value-text">{selectedColor}</span></label>
-                <div className="product-option-values">
-                  {colorOptions.map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      className={`product-option-btn ${selectedColor === color ? 'active' : ''}`}
-                    >
-                      {color}
-                    </button>
-                  ))}
-                </div>
+            {/* Render New Dynamic Variants UI */}
+            {product.variant_types && product.variant_types.length > 0 ? (
+              <div className="product-variants-container" style={{ marginTop: '20px' }}>
+                {product.variant_types.map((vt) => (
+                  <div key={vt.name} className="product-option-group" style={{ marginBottom: '15px' }}>
+                    <label className="product-option-label">
+                      {vt.name}: <span className="option-value-text">{selectedAttributes[vt.name] || ''}</span>
+                    </label>
+                    <div className="product-option-values">
+                      {vt.options.map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setSelectedAttributes(prev => ({ ...prev, [vt.name]: opt }))}
+                          className={`product-option-btn ${selectedAttributes[vt.name] === opt ? 'active' : ''}`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
+            ) : (
+              // Render Legacy Colors UI if no new variants exist
+              (product.colors || []).length > 0 && (
+                <div className="product-option-group">
+                  <label className="product-option-label">Color: <span className="option-value-text">{selectedLegacyColor}</span></label>
+                  <div className="product-option-values">
+                    {(product.colors || []).map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setSelectedLegacyColor(color)}
+                        className={`product-option-btn ${selectedLegacyColor === color ? 'active' : ''}`}
+                      >
+                        {color}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
             )}
 
             {selectedVariantStock > 0 && (

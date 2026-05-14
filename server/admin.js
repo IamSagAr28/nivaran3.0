@@ -19,6 +19,7 @@ function parseProduct(p) {
     images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
     variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
+    variant_types: typeof p.variant_types === 'string' ? JSON.parse(p.variant_types || '[]') : (p.variant_types || []),
   };
 }
 
@@ -161,44 +162,36 @@ router.get('/products/:id', requireAdmin, async (req, res) => {
 
 // POST /api/admin/products
 router.post('/products', requireAdmin, async (req, res) => {
-  const { title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured } = req.body;
+  const { 
+    title, description, price, compare_at_price, images, category, 
+    material, stock, featured, variants, variant_types 
+  } = req.body;
 
   if (!title || !price) return res.status(400).json({ error: 'Title and price are required' });
 
   try {
-    const imagesJson = typeof images === 'string' ? images : JSON.stringify(Array.isArray(images) ? images : []);
-    let colorsArr = normalizeColorsInput(colors);
-    const variantsArr = normalizeVariantsInput(variants);
-    let normalizedStock = parseInt(stock) || 0;
-    let variantsJson = JSON.stringify([]);
-
-    if (variantsArr.length) {
-      colorsArr = variantsArr.map(v => v.color);
-      normalizedStock = variantsArr.reduce((sum, v) => sum + Math.max(0, Number(v.stock || 0)), 0);
-      variantsJson = JSON.stringify(
-        variantsArr.map(v => ({ color: v.color, stock: Math.max(0, Number(v.stock || 0)) }))
-      );
-    }
-
-    const colorsJson = JSON.stringify(colorsArr);
+    const imagesJson = JSON.stringify(Array.isArray(images) ? images : []);
+    const variantsJson = JSON.stringify(Array.isArray(variants) ? variants : []);
+    const variantTypesJson = JSON.stringify(Array.isArray(variant_types) ? variant_types : []);
 
     const sql = `INSERT INTO products 
-      (title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) `;
+      (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const params = [
       title, description || '',
       parseFloat(price),
       compare_at_price ? parseFloat(compare_at_price) : null,
       imagesJson, category || '',
-      colorsJson, variantsJson, material || '',
-      normalizedStock,
-      featured ? 1 : 0
+      material || '',
+      parseInt(stock) || 0,
+      featured ? 1 : 0,
+      variantsJson,
+      variantTypesJson
     ];
 
-    // Use INSERT RETURNING for Postgres
     if (process.env.DATABASE_URL) {
       const pgSql = `INSERT INTO products 
-        (title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured)
+        (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
       
       try {
@@ -208,7 +201,6 @@ router.post('/products', requireAdmin, async (req, res) => {
         return res.status(201).json(created);
       } catch (pgErr) {
         console.error('Postgres INSERT error:', pgErr);
-        // Fallback to generic run for other cases if needed, or just error out
         return res.status(500).json({ error: 'Failed to create product with Postgres', detail: pgErr.message });
       }
     } else {
@@ -229,38 +221,32 @@ router.post('/products', requireAdmin, async (req, res) => {
 
 // PUT /api/admin/products/:id
 router.put('/products/:id', requireAdmin, async (req, res) => {
-  const { title, description, price, compare_at_price, images, category, colors, variants, material, stock, featured } = req.body;
+  const { 
+    title, description, price, compare_at_price, images, category, 
+    material, stock, featured, variants, variant_types 
+  } = req.body;
   const { id } = req.params;
 
   try {
-    const imagesJson = typeof images === 'string' ? images : JSON.stringify(Array.isArray(images) ? images : []);
-    let colorsArr = normalizeColorsInput(colors);
-    const variantsArr = normalizeVariantsInput(variants);
-    let normalizedStock = parseInt(stock) || 0;
-    let variantsJson = JSON.stringify([]);
-
-    if (variantsArr.length) {
-      colorsArr = variantsArr.map(v => v.color);
-      normalizedStock = variantsArr.reduce((sum, v) => sum + Math.max(0, Number(v.stock || 0)), 0);
-      variantsJson = JSON.stringify(
-        variantsArr.map(v => ({ color: v.color, stock: Math.max(0, Number(v.stock || 0)) }))
-      );
-    }
-
-    const colorsJson = JSON.stringify(colorsArr);
+    const imagesJson = JSON.stringify(Array.isArray(images) ? images : []);
+    const variantsJson = JSON.stringify(Array.isArray(variants) ? variants : []);
+    const variantTypesJson = JSON.stringify(Array.isArray(variant_types) ? variant_types : []);
 
     const sql = `UPDATE products SET 
       title=?, description=?, price=?, compare_at_price=?, images=?, 
-      category=?, colors=?, variants=?, material=?, stock=?, featured=?, updated_at=CURRENT_TIMESTAMP
+      category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, 
+      updated_at=CURRENT_TIMESTAMP
       WHERE id=?`;
     const params = [
       title, description || '',
       parseFloat(price),
       compare_at_price ? parseFloat(compare_at_price) : null,
       imagesJson, category || '',
-      colorsJson, variantsJson, material || '',
-      normalizedStock,
+      material || '',
+      parseInt(stock) || 0,
       featured ? 1 : 0,
+      variantsJson,
+      variantTypesJson,
       id
     ];
 

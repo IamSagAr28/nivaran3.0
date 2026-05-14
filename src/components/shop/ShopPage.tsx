@@ -14,7 +14,8 @@ interface Product {
   images: string[]
   category: string
   colors: string[]
-  variants?: Array<{ color: string; stock: number }>
+  variants?: Array<any>
+  variant_types?: Array<{ name: string; options: string[] }>
   material: string
   stock: number
   featured: number
@@ -86,9 +87,16 @@ export default function ShopPage() {
   const handleAddToCart = (e: React.MouseEvent, p: Product) => {
     e.stopPropagation()
     const variants = Array.isArray(p.variants) ? p.variants : []
-    const selectedVariantColor = variants.length
-      ? (variants.find(v => Number(v.stock || 0) > 0)?.color || variants[0]?.color)
-      : undefined
+    let variantDescription = undefined;
+
+    if (p.variant_types && p.variant_types.length > 0 && variants.length > 0) {
+      const firstAvailable = variants.find(v => Number(v.stock || 0) > 0) || variants[0];
+      if (firstAvailable?.attributes) {
+        variantDescription = Object.values(firstAvailable.attributes).join(', ');
+      }
+    } else if (variants.length > 0) {
+      variantDescription = variants.find(v => Number(v.stock || 0) > 0)?.color || variants[0]?.color;
+    }
 
     addToCart({
       productId: String(p.id),
@@ -97,7 +105,7 @@ export default function ShopPage() {
       image: apiUrl(`/api/products/${p.id}/media/0`),
       category: p.category,
       material: p.material,
-      variantColor: selectedVariantColor,
+      variantColor: variantDescription,
     })
     const id = String(p.id)
     setAddedIds(prev => new Set([...prev, id]))
@@ -279,8 +287,12 @@ export default function ShopPage() {
                       <div className="product-meta">{p.category}</div>
                       <div className="product-title">{p.title}</div>
                       <div className="product-price">₹{p.price.toFixed(0)}</div>
-                      <div className="product-sub">{p.colors?.length || 0} colours / {p.material}</div>
-                      <div className="product-actions">
+                        <div className="product-sub" style={{ fontSize: '0.75rem', marginTop: '4px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {p.variant_types && p.variant_types.length > 0
+                            ? p.variant_types.map(vt => `${vt.options.length} ${vt.name}s`).join(' • ')
+                            : `${p.colors?.length || 0} colours`} / {p.material}
+                        </div>
+                        <div className="product-actions" style={{ marginTop: '12px' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
