@@ -530,13 +530,27 @@ function seedAdminUser() {
   const defaultPassword = process.env.ADMIN_PASSWORD || 'nivara@admin123';
   
   dbWrapper.get('SELECT id FROM admin_users WHERE username = ?', [defaultUsername], (err, row) => {
-    if (err || row) return; // Already exists or error
+    if (err) {
+      console.error('❌ Error checking admin user:', err);
+      return;
+    }
+    if (row) {
+      console.log(`✅ Admin user already exists: ${defaultUsername}`);
+      return;
+    }
+    
     const hash = bcrypt.hashSync(defaultPassword, 10);
     dbWrapper.run(
       'INSERT INTO admin_users (username, password_hash) VALUES (?, ?)',
       [defaultUsername, hash],
       (err2) => {
-        if (!err2) console.log(`✅ Default admin user created: ${defaultUsername}`);
+        if (err2) {
+          console.error(`❌ Error creating admin user: ${err2.message}`);
+        } else {
+          console.log(`✅ Default admin user created: ${defaultUsername}`);
+          console.log(`   Username: ${defaultUsername}`);
+          console.log(`   Password: ${defaultPassword}`);
+        }
       }
     );
   });

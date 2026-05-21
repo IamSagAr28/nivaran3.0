@@ -122,6 +122,33 @@ app.get('/', (req, res) => {
   res.send('Nivaran Auth Server is running.');
 });
 
+// Diagnostic endpoint for debugging admin login issues
+app.get('/api/admin/debug', async (req, res) => {
+  try {
+    const db = require('./database');
+    const admins = await new Promise((resolve, reject) => {
+      db.all('SELECT username FROM admin_users', [], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+    res.json({
+      status: 'ok',
+      database: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite',
+      adminUsers: admins.map(a => a.username),
+      adminCount: admins.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Debug endpoint error:', err);
+    res.status(500).json({
+      status: 'error',
+      error: err.message,
+      database: process.env.DATABASE_URL ? 'PostgreSQL' : 'SQLite'
+    });
+  }
+});
+
 // Start Server only if run directly
 if (require.main === module) {
   app.listen(PORT, () => {

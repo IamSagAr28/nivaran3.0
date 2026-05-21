@@ -72,10 +72,32 @@ router.post('/login', async (req, res) => {
 
   try {
     const admin = await db.getAsync('SELECT * FROM admin_users WHERE username = ?', [username]);
-    if (!admin) return res.status(401).json({ error: 'Invalid credentials' });
+    
+    if (!admin) {
+      console.error(`Admin login failed: User "${username}" not found in database`);
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        debug: {
+          userNotFound: true,
+          username: username,
+          message: 'Admin user not found in database'
+        }
+      });
+    }
 
     const valid = bcrypt.compareSync(password, admin.password_hash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
+    if (!valid) {
+      console.error(`Admin login failed: Invalid password for user "${username}"`);
+      return res.status(401).json({ 
+        error: 'Invalid credentials',
+        debug: {
+          invalidPassword: true,
+          username: username
+        }
+      });
+    }
+
+    console.log(`✅ Admin login successful: ${username}`);
 
     // Generate a signed token (works even when cookies are blocked)
     const adminToken = signAdminToken({ adminId: admin.id, username: admin.username });
@@ -87,7 +109,12 @@ router.post('/login', async (req, res) => {
     res.json({ success: true, adminId: admin.id, username: admin.username, token: adminToken });
   } catch (err) {
     console.error('Admin login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ 
+      error: 'Login failed',
+      debug: {
+        errorMessage: err.message
+      }
+    });
   }
 });
 
