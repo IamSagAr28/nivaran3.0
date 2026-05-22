@@ -84,6 +84,29 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
+    // Reset all state when the product prop changes
+    setFormData({
+      title: '',
+      description: '',
+      price: 0,
+      compare_at_price: 0,
+      category: '',
+      colors: '[]',
+      variants: '[]',
+      variant_types: '[]',
+      material: '',
+      stock: 0,
+      featured: false,
+      images: '[]',
+    });
+    setVariantStocks({});
+    setVariantTypes([]);
+    setNewVariants([]);
+    setImagePreviews([]);
+    setSaving(false);
+    setUploading(false);
+    setUploadError('');
+
     if (product) {
       const productObj = { ...product };
       let imagesArray: string[] = [];
@@ -225,38 +248,49 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       const remaining = Math.max(0, MAX_MEDIA_ITEMS - imagePreviews.length);
       const selected = Array.from(files).slice(0, remaining);
 
+      if (selected.length === 0) {
+        throw new Error(`Maximum ${MAX_MEDIA_ITEMS} images allowed`);
+      }
+
       const processed: string[] = [];
       for (const file of selected) {
         const isVideo = file.type === 'video/mp4' || file.name.toLowerCase().endsWith('.mp4');
         const isImage = file.type.startsWith('image/');
 
         if (!isImage && !isVideo) {
-          throw new Error('Only images and MP4 videos are supported');
+          throw new Error(`File "${file.name}" is not supported. Only images and MP4 videos allowed.`);
         }
 
         if (isVideo && file.size > MAX_VIDEO_BYTES) {
-          throw new Error(`MP4 is too large (${bytesToMb(file.size)}MB). Please upload a smaller video (max ${bytesToMb(MAX_VIDEO_BYTES)}MB).`);
+          throw new Error(`MP4 "${file.name}" is too large (${bytesToMb(file.size)}MB). Max: ${bytesToMb(MAX_VIDEO_BYTES)}MB`);
         }
         if (isImage && file.size > MAX_IMAGE_BYTES) {
-          throw new Error(`Image is too large (${bytesToMb(file.size)}MB). Please upload a smaller image (max ${bytesToMb(MAX_IMAGE_BYTES)}MB).`);
+          throw new Error(`Image "${file.name}" is too large (${bytesToMb(file.size)}MB). Max: ${bytesToMb(MAX_IMAGE_BYTES)}MB`);
         }
 
-        if (isImage) {
-          processed.push(await compressImageToDataUrl(file));
-        } else {
-          processed.push(await fileToDataUrl(file));
+        try {
+          if (isImage) {
+            processed.push(await compressImageToDataUrl(file));
+          } else {
+            processed.push(await fileToDataUrl(file));
+          }
+        } catch (uploadErr) {
+          const errMsg = uploadErr instanceof Error ? uploadErr.message : 'Failed to process file';
+          throw new Error(`Error processing "${file.name}": ${errMsg}`);
         }
       }
 
       const next = [...imagePreviews, ...processed].slice(0, MAX_MEDIA_ITEMS);
       setImagePreviews(next);
-      setFormData((prev) => ({
+      setFormData(prev => ({
         ...prev,
         images: JSON.stringify(next),
       }));
+      console.log(`✓ Uploaded ${processed.length} image(s). Total: ${next.length}/${MAX_MEDIA_ITEMS}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Upload failed';
       setUploadError(message);
+      console.error('Image upload error:', message);
     } finally {
       setUploading(false);
       // allow selecting the same file again
@@ -267,10 +301,10 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const removeImage = (index: number) => {
     const updated = imagePreviews.filter((_, i) => i !== index);
     setImagePreviews(updated);
-    setFormData({
-      ...formData,
+    setFormData(prev => ({
+      ...prev,
       images: JSON.stringify(updated),
-    });
+    }));
   };
 
   const handleVariantTypeChange = (index: number, name: string) => {
@@ -288,18 +322,19 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   };
 
   const generateVariantCombinations = () => {
-    const vTypes = variantTypes.filter(vt => vt.name && vt.options.length > 0);
+    const vTypes = variantTypes.filter(vt => vt.name && vt.options.map(o => o.trim()).filter(Boolean).length > 0);
     if (vTypes.length === 0) {
       setNewVariants([]);
       return;
     }
 
     const combinations = vTypes.reduce((acc, vt) => {
+      const validOptions = vt.options.map(opt => opt.trim()).filter(Boolean);
       if (acc.length === 0) {
-        return vt.options.map(opt => ({ [vt.name]: opt }));
+        return validOptions.map(opt => ({ [vt.name]: opt }));
       }
       return acc.flatMap(combo => 
-        vt.options.map(opt => ({ ...combo, [vt.name]: opt }))
+        validOptions.map(opt => ({ ...combo, [vt.name]: opt }))
       );
     }, [] as Array<Record<string, string>>);
 
@@ -317,10 +352,30 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setNewVariants(updatedVariants);
   };
 
+  const addCustomVariant = () => {
+    const attributes: Record<string, string> = {};
+    variantTypes.forEach(vt => {
+      if (vt.name) {
+        const validOptions = vt.options.map(o => o.trim()).filter(Boolean);
+        attributes[vt.name] = validOptions[0] || '';
+      }
+    });
+    setNewVariants([
+      ...newVariants,
+      {
+        attributes,
+        price: formData.price ?? 0,
+        stock: 0
+      }
+    ]);
+  };
+
   const handleVariantDetailChange = (index: number, field: 'price' | 'stock', value: number) => {
     const updated = [...newVariants];
-    updated[index][field] = value;
-    setNewVariants(updated);
+    if (updated[index]) {
+      updated[index][field] = value;
+      setNewVariants(updated);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -450,8 +505,10 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           </div>
 
           <div className="form-section" style={{ marginTop: '20px' }}>
-            <h3>Advanced Variants (Optional)</h3>
-            <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>Define complex options like multiple Sizes and Colors.</p>
+            <div>
+              <h3>Advanced Variants (Optional)</h3>
+              <p style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>Define complex options like multiple Sizes and Colors.</p>
+            </div>
             {variantTypes.map((vt, typeIndex) => (
               <div key={typeIndex} className="variant-type-section" style={{ marginBottom: '10px' }}>
                 <div className="form-row">
@@ -472,7 +529,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                       value={vt.options.join(', ')}
                       onChange={(e) => {
                         const updated = [...variantTypes];
-                        updated[typeIndex].options = e.target.value.split(',').map(s => s.trim());
+                        updated[typeIndex].options = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
                         setVariantTypes(updated);
                       }}
                     />
@@ -483,44 +540,127 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 </div>
               </div>
             ))}
-            <div className="form-row" style={{marginBottom: "20px"}}>
-              <button type="button" onClick={addVariantType} className="admin-btn secondary" style={{marginRight:"10px"}}>
+            <div className="form-row" style={{marginBottom: "20px", display: "flex", gap: "10px", flexWrap: "wrap"}}>
+              <button type="button" onClick={addVariantType} className="admin-btn secondary" style={{display: "flex", alignItems: "center", gap: "6px"}}>
                 <Plus size={16} /> Add Variant Type
               </button>
-              <button type="button" onClick={generateVariantCombinations} className="admin-btn primary">
+              <button type="button" onClick={generateVariantCombinations} className="admin-btn primary" disabled={variantTypes.length === 0}>
                 Generate Combinations
+              </button>
+              <button type="button" onClick={addCustomVariant} className="admin-btn secondary" style={{display: "flex", alignItems: "center", gap: "6px"}} disabled={variantTypes.length === 0}>
+                <Plus size={16} /> Add Custom Variant
               </button>
             </div>
 
             {newVariants.length > 0 && (
-              <div className="variants-table" style={{overflowX: 'auto'}}>
-                <table style={{width: '100%', borderCollapse: 'collapse'}}>
+              <div className="variants-table" style={{overflowX: 'auto', marginTop: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)'}}>
+                <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '14px'}}>
                   <thead>
-                    <tr>
-                      {variantTypes.map(vt => vt.name && <th key={vt.name} style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>{vt.name}</th>)}
-                      <th style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>Price</th>
-                      <th style={{borderBottom:"1px solid #ddd", padding:"8px", textAlign:"left"}}>Stock</th>
+                    <tr style={{background: '#f8fafc'}}>
+                      {variantTypes.map(vt => vt.name && <th key={vt.name} style={{borderBottom:"2px solid #e2e8f0", padding:"12px 10px", textAlign:"left", fontWeight: '600', color: '#475569'}}>{vt.name}</th>)}
+                      <th style={{borderBottom:"2px solid #e2e8f0", padding:"12px 10px", textAlign:"left", fontWeight: '600', color: '#475569', width: '120px'}}>Price (₹)</th>
+                      <th style={{borderBottom:"2px solid #e2e8f0", padding:"12px 10px", textAlign:"left", fontWeight: '600', color: '#475569', width: '100px'}}>Stock</th>
+                      <th style={{borderBottom:"2px solid #e2e8f0", padding:"12px 10px", textAlign:"center", width: '60px'}}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {newVariants.map((variant, index) => (
-                      <tr key={index}>
-                        {variantTypes.map(vt => vt.name && <td key={vt.name} style={{padding:"8px"}}>{variant.attributes[vt.name]}</td>)}
-                        <td style={{padding:"8px"}}>
+                      <tr key={index} style={{borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s'}}>
+                        {variantTypes.map(vt => {
+                          if (!vt.name) return null;
+                          const currentVal = variant.attributes[vt.name] || '';
+                          const opts = vt.options.map(o => o.trim()).filter(Boolean);
+                          return (
+                            <td key={vt.name} style={{padding:"10px"}}>
+                              <select
+                                value={currentVal}
+                                onChange={(e) => {
+                                  const updated = [...newVariants];
+                                  updated[index] = {
+                                    ...updated[index],
+                                    attributes: {
+                                      ...updated[index].attributes,
+                                      [vt.name]: e.target.value
+                                    }
+                                  };
+                                  setNewVariants(updated);
+                                }}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: '6px',
+                                  border: '1px solid #cbd5e1',
+                                  background: 'white',
+                                  fontSize: '14px',
+                                  width: '100%',
+                                  minWidth: '100px',
+                                  outline: 'none',
+                                  color: '#334155'
+                                }}
+                              >
+                                <option value="">Select option...</option>
+                                {opts.map(opt => (
+                                  <option key={opt} value={opt}>{opt}</option>
+                                ))}
+                              </select>
+                            </td>
+                          );
+                        })}
+                        <td style={{padding:"10px"}}>
                           <input
                             type="number"
                             value={variant.price}
-                            onChange={(e) => handleVariantDetailChange(index, 'price', parseFloat(e.target.value))}
-                            style={{width:"80px"}}
+                            onChange={(e) => handleVariantDetailChange(index, 'price', parseFloat(e.target.value) || 0)}
+                            style={{
+                              width:"100%",
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '14px',
+                              outline: 'none',
+                              color: '#334155'
+                            }}
+                            min="0"
+                            step="0.01"
                           />
                         </td>
-                        <td style={{padding:"8px"}}>
+                        <td style={{padding:"10px"}}>
                           <input
                             type="number"
                             value={variant.stock}
-                            onChange={(e) => handleVariantDetailChange(index, 'stock', parseInt(e.target.value))}
-                            style={{width:"60px"}}
+                            onChange={(e) => handleVariantDetailChange(index, 'stock', parseInt(e.target.value) || 0)}
+                            style={{
+                              width:"100%",
+                              padding: '6px 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              fontSize: '14px',
+                              outline: 'none',
+                              color: '#334155'
+                            }}
+                            min="0"
                           />
+                        </td>
+                        <td style={{padding:"10px", textAlign: 'center'}}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNewVariants(newVariants.filter((_, i) => i !== index));
+                            }}
+                            className="admin-btn danger-outline small"
+                            style={{
+                              padding: '6px 10px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '6px',
+                              minWidth: 'auto',
+                              width: '36px',
+                              height: '36px'
+                            }}
+                            title="Delete this variant combination"
+                          >
+                            <Trash2 size={16} />
+                          </button>
                         </td>
                       </tr>
                     ))}

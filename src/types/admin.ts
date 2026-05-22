@@ -64,3 +64,15 @@ export interface AdminStats {
   pendingOrders: number;
   lowStockProducts: number;
 }
+
+export interface VariantType {
+  name: string;
+  options: string[];
+}
+
+export interface Variant {
+  attributes: Record<string, string>;
+  price: number;
+  stock: number;
+}
+
