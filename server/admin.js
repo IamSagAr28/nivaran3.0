@@ -23,6 +23,20 @@ function parseProduct(p) {
   };
 }
 
+// Helper: safe JSON parsing for arrays from req.body (handles strings or raw arrays)
+function safeParseJsonArray(input) {
+  if (Array.isArray(input)) return input;
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function normalizeVariantsInput(input) {
   if (input == null || input === '') return [];
   const raw = typeof input === 'string' ? JSON.parse(input) : input;
@@ -197,9 +211,9 @@ router.post('/products', requireAdmin, async (req, res) => {
   if (!title || !price) return res.status(400).json({ error: 'Title and price are required' });
 
   try {
-    const imagesJson = JSON.stringify(Array.isArray(images) ? images : []);
-    const variantsJson = JSON.stringify(Array.isArray(variants) ? variants : []);
-    const variantTypesJson = JSON.stringify(Array.isArray(variant_types) ? variant_types : []);
+    const imagesJson = JSON.stringify(safeParseJsonArray(images));
+    const variantsJson = JSON.stringify(safeParseJsonArray(variants));
+    const variantTypesJson = JSON.stringify(safeParseJsonArray(variant_types));
 
     const sql = `INSERT INTO products 
       (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types)
@@ -255,9 +269,9 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
 
   try {
-    const imagesJson = JSON.stringify(Array.isArray(images) ? images : []);
-    const variantsJson = JSON.stringify(Array.isArray(variants) ? variants : []);
-    const variantTypesJson = JSON.stringify(Array.isArray(variant_types) ? variant_types : []);
+    const imagesJson = JSON.stringify(safeParseJsonArray(images));
+    const variantsJson = JSON.stringify(safeParseJsonArray(variants));
+    const variantTypesJson = JSON.stringify(safeParseJsonArray(variant_types));
 
     const sql = `UPDATE products SET 
       title=?, description=?, price=?, compare_at_price=?, images=?, 

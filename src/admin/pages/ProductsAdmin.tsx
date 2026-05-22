@@ -27,21 +27,24 @@ export function ProductsAdmin({ onLogout }: ProductsAdminProps) {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl('/api/admin/products'), {
+      // Fetch without images first to avoid payload issues on page 3+
+      const response = await fetch(apiUrl('/api/admin/products?includeImages=0'), {
         credentials: 'include',
         headers: { Authorization: `Bearer ${localStorage.getItem('adminToken') || ''}` },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products || []);
+        const productsList = data.products || [];
+        setProducts(productsList);
+        console.log(`✓ Loaded ${productsList.length} products successfully`);
       } else {
         const data = await response.json().catch(() => ({}));
         throw new Error(data.error || 'Failed to load products');
       }
     } catch (error) {
       console.error('Error fetching products:', error);
-      alert('Failed to load products');
+      alert('Failed to load products: ' + (error instanceof Error ? error.message : 'Unknown error'));
     } finally {
       setLoading(false);
     }

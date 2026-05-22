@@ -59,13 +59,13 @@ export const Router = ({ children, fallback = null }) => {
     // Parameter match (e.g. /blogs/:handle)
     if (path.includes(':')) {
       const keys = [];
-      const regexStr = path.replace(/:([^\/]+)/g, (_, key) => {
+      const regexStr = normalizedPath.replace(/:([^\/]+)/g, (_, key) => {
         keys.push(key);
         return '([^/]+)';
       });
       // Anchored strictly
       const regex = new RegExp(`^${regexStr}$`);
-      const match = currentPath.match(regex);
+      const match = normalizedCurrentPath.match(regex);
 
       if (match) {
         keys.forEach((key, index) => {

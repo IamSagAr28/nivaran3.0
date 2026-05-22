@@ -15,7 +15,8 @@ function parseProduct(p) {
     featured: p.featured == null ? p.featured : Number(p.featured),
     images: typeof p.images === 'string' ? JSON.parse(p.images || '[]') : (p.images || []),
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
-      variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
+    variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
+    variant_types: typeof p.variant_types === 'string' ? JSON.parse(p.variant_types || '[]') : (p.variant_types || []),
   };
 }
 
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
       const selectCols = withImages
         ? '*'
-        : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, created_at, updated_at';
+        : 'id, title, description, price, compare_at_price, category, colors, variants, variant_types, material, stock, featured, created_at, updated_at';
 
     let sql = `SELECT ${selectCols} FROM products WHERE 1=1`;
     const params = [];
@@ -112,7 +113,7 @@ router.get('/:id/media/:index', async (req, res) => {
 
     // If it's a data URL, decode base64 and serve bytes.
     if (value.startsWith('data:')) {
-      const match = value.match(/^data:([^;]+);base64,(.*)$/);
+      const match = value.match(/^data:([^;]+);base64,([\s\S]*)$/);
       if (!match) return res.status(400).json({ error: 'Unsupported data URL format' });
       const mime = match[1] || 'application/octet-stream';
       const base64 = match[2] || '';
