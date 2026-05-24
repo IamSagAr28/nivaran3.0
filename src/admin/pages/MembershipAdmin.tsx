@@ -178,7 +178,7 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                         <td className="order-id">#{order.id}</td>
                         <td>{order.customer_name}</td>
                         <td>{order.customer_email}</td>
-                        <td className="order-total">₹{order.total.toFixed(2)}</td>
+                        <td className="order-total">₹{Number(order.total).toFixed(2)}</td>
                         <td>
                           <div className="payment-cell">
                             <div className="payment-method">
@@ -279,9 +279,9 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                                     <div className="text-sm text-gray-500 italic">No items found (could be raw string inside DB: {typeof order.items === 'string' ? order.items : 'Unknown'})</div>
                                   )}
                                   <div className="flex flex-col items-end gap-1 text-sm bg-white p-3 rounded shadow-sm border border-gray-200">
-                                    <span>Subtotal: <strong>₹{order.subtotal?.toFixed(2) || '0.00'}</strong></span>
-                                    <span>Shipping: <strong>₹{order.shipping?.toFixed(2) || '0.00'}</strong></span>
-                                    <span className="border-t border-gray-200 w-full text-right pt-1 mt-1 text-base">Total: <strong className="text-[#e7335d]">₹{order.total?.toFixed(2) || '0.00'}</strong></span>
+                                    <span>Subtotal: <strong>₹{Number(order.subtotal || 0).toFixed(2)}</strong></span>
+                                    <span>Shipping: <strong>₹{Number(order.shipping || 0).toFixed(2)}</strong></span>
+                                    <span className="border-t border-gray-200 w-full text-right pt-1 mt-1 text-base">Total: <strong className="text-[#e7335d]">₹{Number(order.total || 0).toFixed(2)}</strong></span>
                                   </div>
                                 </div>
                               </div>

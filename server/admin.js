@@ -325,6 +325,9 @@ router.get('/orders', requireAdmin, async (req, res) => {
     const rows = await db.allAsync(sql, params);
     const orders = rows.map(o => ({
       ...o,
+      subtotal: o.subtotal == null ? o.subtotal : Number(o.subtotal),
+      shipping: o.shipping == null ? o.shipping : Number(o.shipping),
+      total: o.total == null ? o.total : Number(o.total),
       items: typeof o.items === 'string' ? JSON.parse(o.items) : o.items
     }));
     res.json({ orders });
@@ -338,7 +341,13 @@ router.get('/orders/:id', requireAdmin, async (req, res) => {
   try {
     const order = await db.getAsync('SELECT * FROM orders WHERE id = ?', [req.params.id]);
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    res.json({ ...order, items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items });
+    res.json({
+      ...order,
+      subtotal: order.subtotal == null ? order.subtotal : Number(order.subtotal),
+      shipping: order.shipping == null ? order.shipping : Number(order.shipping),
+      total: order.total == null ? order.total : Number(order.total),
+      items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch order' });
   }
