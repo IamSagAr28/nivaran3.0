@@ -81,7 +81,7 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
     // ONLY show orders that contain a membership
     const hasMembership = Array.isArray(order.items) && order.items.some((item: any) => {
       const title = item.title ? item.title.toLowerCase() : '';
-      return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan');
+      return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan');
     });
     if (!hasMembership) return false;
 

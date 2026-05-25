@@ -496,12 +496,12 @@ router.get('/stats', requireAdmin, async (req, res) => {
 
       const hasMembership = items.some(item => {
         const title = item.title ? item.title.toLowerCase() : '';
-        return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan');
+        return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan');
       });
 
       const hasProduct = items.some(item => {
         const title = item.title ? item.title.toLowerCase() : '';
-        return !(item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan'));
+        return !(item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan'));
       });
 
       if (hasProduct) {
