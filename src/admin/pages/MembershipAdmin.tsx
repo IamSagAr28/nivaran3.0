@@ -175,7 +175,14 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                   {paginatedOrders.map((order) => (
                     <React.Fragment key={order.id}>
                       <tr key={order.id}>
-                        <td className="order-id">#{order.id}</td>
+                        <td className="order-id">
+                          <div className="font-bold">#{order.id}</div>
+                          {Array.isArray(order.items) && 
+                            order.items.some(i => { const t = i.title ? i.title.toLowerCase() : ''; return i.category === 'Membership' || t.includes('membership') || t.includes('pickup plan'); }) && 
+                            order.items.some(i => { const t = i.title ? i.title.toLowerCase() : ''; return !(i.category === 'Membership' || t.includes('membership') || t.includes('pickup plan')); }) && (
+                            <div className="mt-1"><span className="bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded border border-yellow-200 whitespace-nowrap">Mixed Order</span></div>
+                          )}
+                        </td>
                         <td>{order.customer_name}</td>
                         <td>{order.customer_email}</td>
                         <td className="order-total">₹{Number(order.total).toFixed(2)}</td>
@@ -255,8 +262,10 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                                   <strong className="text-xs uppercase text-gray-500">Items Ordered</strong>
                                   {Array.isArray(order.items) && order.items.length > 0 ? (
                                     <div className="bg-white rounded p-3 shadow-sm border border-gray-200">
-                                      {order.items.map((item: any, i: number) => (
-                                        <div key={item.id || i} className="flex justify-between items-center text-sm border-b border-gray-100 py-2 last:border-0 last:pb-0">
+                                      {order.items.map((item: any, i: number) => {
+                                        const isMem = item.title ? (item.category === 'Membership' || item.title.toLowerCase().includes('membership') || item.title.toLowerCase().includes('pickup plan')) : false;
+                                        return (
+                                        <div key={item.id || i} className={`flex justify-between items-center text-sm border-b border-gray-100 py-2 last:border-0 last:pb-0 ${!isMem ? 'opacity-40 bg-gray-50' : 'bg-blue-50/50 rounded px-2 font-medium border-l-2 border-l-blue-400 my-1'}`}>
                                           <div className="flex gap-3 items-center">
                                             {item.image && (
                                               <div className="w-8 h-8 rounded border overflow-hidden flex-shrink-0">
@@ -264,7 +273,10 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                                               </div>
                                             )}
                                             <div>
-                                              <p className="font-semibold text-gray-800">{item.title}</p>
+                                              <p className="font-semibold text-gray-800">
+                                                {item.title}
+                                                {isMem && <span className="ml-2 text-[10px] bg-blue-100 text-blue-700 px-1 rounded">Membership Plan</span>}
+                                              </p>
                                               <p className="text-xs text-gray-500">{item.material}</p>
                                             </div>
                                           </div>
@@ -273,7 +285,7 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
                                             <p className="font-bold text-gray-800">₹{(item.quantity * item.price).toFixed(2)}</p>
                                           </div>
                                         </div>
-                                      ))}
+                                      )})}
                                     </div>
                                   ) : (
                                     <div className="text-sm text-gray-500 italic">No items found (could be raw string inside DB: {typeof order.items === 'string' ? order.items : 'Unknown'})</div>
