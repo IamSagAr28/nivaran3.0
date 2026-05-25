@@ -231,6 +231,10 @@ function initPgDb() {
       return db.query(alterProducts);
     })
     .then(() => {
+      // Bump the order sequence to start at 10000 if it's currently lower
+      return db.query(`SELECT setval('orders_id_seq', GREATEST(10000, COALESCE((SELECT MAX(id) FROM orders), 10000)))`).catch(() => {});
+    })
+    .then(() => {
       console.log('✅ PostgreSQL tables initialized.');
       seedAdminUser();
       seedHeroSlides();
@@ -356,6 +360,10 @@ function initSqliteDb() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    // Force 5-digit order IDs starting from 10001
+    db.run(`INSERT INTO sqlite_sequence (name, seq) SELECT 'orders', 10000 WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'orders')`);
+    db.run(`UPDATE sqlite_sequence SET seq = 10000 WHERE name = 'orders' AND seq < 10000`);
 
     db.run(`CREATE TABLE IF NOT EXISTS admin_users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -161,10 +161,10 @@ export async function deleteHeroSlide(id: number) {
 }
 
 // ---- Razorpay ----
-export async function createRazorpayOrder(amount: number, receipt?: string) {
+export async function createRazorpayOrder(amount: number, receipt?: string, notes?: Record<string, string>) {
   return apiFetch('/api/payments/razorpay/order', {
     method: 'POST',
-    body: JSON.stringify({ amount, receipt }),
+    body: JSON.stringify({ amount, receipt, notes }),
   });
 }
 

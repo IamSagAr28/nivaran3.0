@@ -471,16 +471,20 @@ router.post('/orders/:id/shiprocket', requireAdmin, async (req, res) => {
 // ===================== DASHBOARD STATS ======================
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    const [productCount, orderCount, pendingOrders, totalRevenue] = await Promise.all([
+    const [productCount, productOrders, pendingProductOrders, memberships, pendingMemberships, totalRevenue] = await Promise.all([
       db.getAsync('SELECT COUNT(*) as count FROM products'),
-      db.getAsync('SELECT COUNT(*) as count FROM orders'),
-      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE status = 'pending'"),
+      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE items NOT LIKE '%Membership%' AND items NOT LIKE '%Plan%'"),
+      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE status = 'pending' AND items NOT LIKE '%Membership%' AND items NOT LIKE '%Plan%'"),
+      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE items LIKE '%Membership%' OR items LIKE '%Plan%'"),
+      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE status = 'pending' AND (items LIKE '%Membership%' OR items LIKE '%Plan%')"),
       db.getAsync("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status != 'cancelled'"),
     ]);
     res.json({
       products: productCount?.count || 0,
-      orders: orderCount?.count || 0,
-      pending: pendingOrders?.count || 0,
+      orders: productOrders?.count || 0,
+      pending: pendingProductOrders?.count || 0,
+      memberships: memberships?.count || 0,
+      pendingMemberships: pendingMemberships?.count || 0,
       revenue: parseFloat(totalRevenue?.total || 0),
     });
   } catch (err) {

@@ -59,9 +59,11 @@ export interface AdminUser {
 export interface AdminStats {
   totalProducts: number;
   totalOrders: number;
+  totalMemberships: number;
   totalUsers: number;
   totalRevenue: number;
   pendingOrders: number;
+  pendingMemberships: number;
   lowStockProducts: number;
 }
 

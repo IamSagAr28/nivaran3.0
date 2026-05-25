@@ -194,7 +194,7 @@ router.post('/razorpay/order', async (req, res) => {
     return res.status(400).json({ error: 'Razorpay is not configured' });
   }
 
-  const { amount, receipt } = req.body;
+  const { amount, receipt, notes } = req.body;
   const totalAmount = Number(amount);
   if (!totalAmount || totalAmount <= 0) {
     return res.status(400).json({ error: 'Invalid amount' });
@@ -206,6 +206,7 @@ router.post('/razorpay/order', async (req, res) => {
       currency: 'INR',
       receipt: receipt || `order_${Date.now()}`,
       payment_capture: 1,
+      notes: notes || {},
     });
 
     res.json({

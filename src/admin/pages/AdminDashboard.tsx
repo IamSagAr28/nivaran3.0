@@ -14,9 +14,11 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
   const [stats, setStats] = useState<AdminStats>({
     totalProducts: 0,
     totalOrders: 0,
+    totalMemberships: 0,
     totalUsers: 0,
     totalRevenue: 0,
     pendingOrders: 0,
+    pendingMemberships: 0,
     lowStockProducts: 0,
   });
   const [loading, setLoading] = useState(true);
@@ -38,9 +40,11 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         setStats({
           totalProducts: data.products || 0,
           totalOrders: data.orders || 0,
+          totalMemberships: data.memberships || 0,
           totalUsers: data.users || 0,
           totalRevenue: data.revenue || 0,
           pendingOrders: data.pending || 0,
+          pendingMemberships: data.pendingMemberships || 0,
           lowStockProducts: data.lowStock || 0,
         });
       }
@@ -69,10 +73,17 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             loading={loading}
           />
           <StatsCard
-            title="Total Orders"
+            title="Product Orders"
             value={stats.totalOrders}
             icon={<ShoppingCart size={24} />}
             color="bg-green-500"
+            loading={loading}
+          />
+          <StatsCard
+            title="Memberships"
+            value={stats.totalMemberships}
+            icon={<Users size={24} />}
+            color="bg-indigo-500"
             loading={loading}
           />
           <StatsCard
@@ -95,7 +106,14 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
         {stats.pendingOrders > 0 && (
           <div className="admin-alert alert-warning">
             <strong>⚠️ Attention:</strong> You have {stats.pendingOrders} pending
-            orders that need processing.
+            product orders that need processing.
+          </div>
+        )}
+
+        {stats.pendingMemberships > 0 && (
+          <div className="admin-alert alert-warning" style={{ borderLeftColor: '#6366f1' }}>
+            <strong>🎫 Action Required:</strong> You have {stats.pendingMemberships} pending
+            memberships that need approval.
           </div>
         )}
 

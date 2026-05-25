@@ -649,7 +649,16 @@ payment-options {
       }
 
       // 1. Create order on backend (which creates RP order)
-      const rpOrderResult = await createRazorpayOrder(payableTotal, `rcpt_${Date.now()}`)
+      const rpOrderResult = await createRazorpayOrder(payableTotal, `rcpt_${Date.now()}`, {
+        customer_name: form.customer_name,
+        email: form.customer_email,
+        phone: form.customer_phone,
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        full_address: `${form.address}, ${form.city}, ${form.state} - ${form.pincode}`
+      })
 
       // 2. Open Razorpay Checkout modal
       const options = {
@@ -688,6 +697,16 @@ payment-options {
           name: form.customer_name,
           email: form.customer_email,
           contact: form.customer_phone
+        },
+        notes: {
+          customer_name: form.customer_name,
+          email: form.customer_email,
+          phone: form.customer_phone,
+          address: form.address,
+          city: form.city,
+          state: form.state,
+          pincode: form.pincode,
+          full_address: `${form.address}, ${form.city}, ${form.state} - ${form.pincode}`
         },
         theme: {
           color: "#ff3f6c" // Myntra-like accent
