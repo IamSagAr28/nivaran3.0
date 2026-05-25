@@ -471,21 +471,57 @@ router.post('/orders/:id/shiprocket', requireAdmin, async (req, res) => {
 // ===================== DASHBOARD STATS ======================
 router.get('/stats', requireAdmin, async (req, res) => {
   try {
-    const [productCount, productOrders, pendingProductOrders, memberships, pendingMemberships, totalRevenue] = await Promise.all([
+    const [productCountResult, ordersResult] = await Promise.all([
       db.getAsync('SELECT COUNT(*) as count FROM products'),
-      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE items NOT LIKE '%Membership%' AND items NOT LIKE '%Plan%'"),
-      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE status = 'pending' AND items NOT LIKE '%Membership%' AND items NOT LIKE '%Plan%'"),
-      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE items LIKE '%Membership%' OR items LIKE '%Plan%'"),
-      db.getAsync("SELECT COUNT(*) as count FROM orders WHERE status = 'pending' AND (items LIKE '%Membership%' OR items LIKE '%Plan%')"),
-      db.getAsync("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status != 'cancelled'"),
+      db.allAsync('SELECT items, status, total FROM orders')
     ]);
+
+    let productOrders = 0;
+    let pendingProductOrders = 0;
+    let memberships = 0;
+    let pendingMemberships = 0;
+    let totalRevenue = 0;
+
+    (ordersResult || []).forEach(o => {
+      if (o.status !== 'cancelled') {
+        totalRevenue += Number(o.total || 0);
+      }
+      
+      let items = [];
+      try {
+        items = typeof o.items === 'string' ? JSON.parse(o.items) : (o.items || []);
+      } catch (e) {}
+
+      if (!Array.isArray(items)) return;
+
+      const hasMembership = items.some(item => {
+        const title = item.title ? item.title.toLowerCase() : '';
+        return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan');
+      });
+
+      const hasProduct = items.some(item => {
+        const title = item.title ? item.title.toLowerCase() : '';
+        return !(item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan'));
+      });
+
+      if (hasProduct) {
+        productOrders++;
+        if (o.status === 'pending') pendingProductOrders++;
+      }
+      
+      if (hasMembership) {
+        memberships++;
+        if (o.status === 'pending') pendingMemberships++;
+      }
+    });
+
     res.json({
-      products: productCount?.count || 0,
-      orders: productOrders?.count || 0,
-      pending: pendingProductOrders?.count || 0,
-      memberships: memberships?.count || 0,
-      pendingMemberships: pendingMemberships?.count || 0,
-      revenue: parseFloat(totalRevenue?.total || 0),
+      products: productCountResult?.count || 0,
+      orders: productOrders,
+      pending: pendingProductOrders,
+      memberships: memberships,
+      pendingMemberships: pendingMemberships,
+      revenue: totalRevenue,
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch stats' });

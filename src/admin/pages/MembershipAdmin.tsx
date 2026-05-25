@@ -78,12 +78,12 @@ export function MembershipAdmin({ onLogout }: OrdersAdminProps) {
   };
 
   const filteredOrders = orders.filter((order) => {
-    // ONLY show memberships
-    const isMembership = Array.isArray(order.items) && order.items.some((item: any) => 
-      item.category === 'Membership' || 
-      (item.title && (item.title.toLowerCase().includes('membership') || item.title.toLowerCase().includes('pickup plan') || item.title.toLowerCase().includes('plan')))
-    );
-    if (!isMembership) return false;
+    // ONLY show orders that contain a membership
+    const hasMembership = Array.isArray(order.items) && order.items.some((item: any) => {
+      const title = item.title ? item.title.toLowerCase() : '';
+      return item.category === 'Membership' || title.includes('membership') || title.includes('pickup plan') || title.includes('plan');
+    });
+    if (!hasMembership) return false;
 
     const matchesSearch =
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
