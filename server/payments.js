@@ -91,10 +91,11 @@ async function decrementStockForItems(items) {
 
     if (!productId || !Number.isFinite(quantity) || quantity <= 0) continue;
 
-    const product = await db.getAsync('SELECT id, stock, variants FROM products WHERE id = ?', [productId]);
+    // Allow non-product cart items (e.g. memberships) to pass through.
+    if (!/^\d+$/.test(productId)) continue;
+
+    const product = await db.getAsync('SELECT id, stock, variants FROM products WHERE id = ?', [Number(productId)]);
     if (!product) {
-      // Allow non-product cart items (e.g. memberships) to pass through.
-      if (!/^\d+$/.test(productId)) continue;
       throw new Error('One or more products are unavailable');
     }
 
@@ -124,7 +125,7 @@ async function decrementStockForItems(items) {
 
       await db.runAsync(
         'UPDATE products SET variants = ?, colors = ?, stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [JSON.stringify(variants), JSON.stringify(colors), totalStock, productId]
+        [JSON.stringify(variants), JSON.stringify(colors), totalStock, Number(productId)]
       );
     } else {
       const available = Number(product.stock ?? 0);
@@ -134,7 +135,7 @@ async function decrementStockForItems(items) {
 
       await db.runAsync(
         'UPDATE products SET stock = CASE WHEN stock - ? < 0 THEN 0 ELSE stock - ? END, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [quantity, quantity, productId]
+        [quantity, quantity, Number(productId)]
       );
     }
   }
@@ -216,6 +217,7 @@ router.post('/razorpay/order', async (req, res) => {
       currency: order.currency,
     });
   } catch (err) {
+    console.error('Create Razorpay order error:', err);
     res.status(500).json({ error: 'Failed to create Razorpay order' });
   }
 });
@@ -245,7 +247,8 @@ router.post('/razorpay/verify', async (req, res) => {
 
     res.json({ success: true, orderId });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to place order' });
+    console.error('Verify Razorpay payment error:', err);
+    res.status(500).json({ error: 'Failed to place order', details: err.message });
   }
 });
 

@@ -14,10 +14,11 @@ async function decrementStockForItems(items) {
 
     if (!productId || !Number.isFinite(quantity) || quantity <= 0) continue;
 
-    const product = await db.getAsync('SELECT id, stock, variants, title FROM products WHERE id = ?', [productId]);
+    // Allow non-product cart items (e.g. memberships) to pass through.
+    if (!/^\d+$/.test(productId)) continue;
+
+    const product = await db.getAsync('SELECT id, stock, variants, title FROM products WHERE id = ?', [Number(productId)]);
     if (!product) {
-      // Allow non-product cart items (e.g. memberships) to pass through.
-      if (!/^\d+$/.test(productId)) continue;
       throw new Error('One or more products are unavailable');
     }
 
@@ -47,7 +48,7 @@ async function decrementStockForItems(items) {
 
       await db.runAsync(
         'UPDATE products SET variants = ?, colors = ?, stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [JSON.stringify(variants), JSON.stringify(colors), totalStock, productId]
+        [JSON.stringify(variants), JSON.stringify(colors), totalStock, Number(productId)]
       );
     } else {
       const available = Number(product.stock ?? 0);
@@ -57,7 +58,7 @@ async function decrementStockForItems(items) {
 
       await db.runAsync(
         'UPDATE products SET stock = CASE WHEN stock - ? < 0 THEN 0 ELSE stock - ? END, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [quantity, quantity, productId]
+        [quantity, quantity, Number(productId)]
       );
     }
   }
