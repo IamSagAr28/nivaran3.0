@@ -28,6 +28,8 @@ const allowedOrigins = [
   'https://nivaran31-h5u5ip9ru-vidyasagars-projects-414a8af3.vercel.app',
   'https://nivaran31-awqiwe0kv-vidyasagars-projects-414a8af3.vercel.app',
   'https://nivaran31.vercel.app',
+  'https://www.nivaranupcyclers.com',
+  'https://nivaranupcyclers.com',
   'https://www.nivaranupcyclers.in',
   'https://nivaranupcyclers.in',
   'https://shop.nivaranupcyclers.in',

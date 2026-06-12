@@ -273,11 +273,6 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
     const variantsJson = JSON.stringify(safeParseJsonArray(variants));
     const variantTypesJson = JSON.stringify(safeParseJsonArray(variant_types));
 
-    const sql = `UPDATE products SET 
-      title=?, description=?, price=?, compare_at_price=?, images=?, 
-      category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, 
-      updated_at=CURRENT_TIMESTAMP
-      WHERE id=?`;
     const params = [
       title, description || '',
       parseFloat(price),
@@ -291,25 +286,60 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       id
     ];
 
-    db.run(sql, params, async function(err) {
-      if (err) return res.status(500).json({ error: 'Failed to update product', detail: err.message });
-      const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
-      const parsed = parseProduct(updated);
-      // Keep response small; images can be fetched via GET /api/admin/products/:id
-      parsed.images = [];
-      res.json(parsed);
-    });
+    if (process.env.DATABASE_URL) {
+      // PostgreSQL uses $1, $2, ... placeholders
+      const pgSql = `UPDATE products SET 
+        title=$1, description=$2, price=$3, compare_at_price=$4, images=$5, 
+        category=$6, material=$7, stock=$8, featured=$9, variants=$10, variant_types=$11, 
+        updated_at=CURRENT_TIMESTAMP
+        WHERE id=$12 RETURNING id, title, price, category, stock, featured, created_at, updated_at`;
+      try {
+        const result = await db.getAsync(pgSql, params);
+        const parsed = parseProduct(result);
+        parsed.images = [];
+        return res.json(parsed);
+      } catch (pgErr) {
+        console.error('Postgres UPDATE error:', pgErr);
+        return res.status(500).json({ error: 'Failed to update product', detail: pgErr.message });
+      }
+    } else {
+      // SQLite uses ? placeholders
+      const sql = `UPDATE products SET 
+        title=?, description=?, price=?, compare_at_price=?, images=?, 
+        category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, 
+        updated_at=CURRENT_TIMESTAMP
+        WHERE id=?`;
+      db.run(sql, params, async function(err) {
+        if (err) return res.status(500).json({ error: 'Failed to update product', detail: err.message });
+        const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
+        const parsed = parseProduct(updated);
+        parsed.images = [];
+        res.json(parsed);
+      });
+    }
   } catch (err) {
+    console.error('PUT /admin/products error:', err);
     res.status(500).json({ error: 'Failed to update product' });
   }
 });
 
 // DELETE /api/admin/products/:id
-router.delete('/products/:id', requireAdmin, (req, res) => {
-  db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
-    if (err) return res.status(500).json({ error: 'Failed to delete product' });
+router.delete('/products/:id', requireAdmin, async (req, res) => {
+  try {
+    if (process.env.DATABASE_URL) {
+      await db.getAsync('DELETE FROM products WHERE id = $1', [req.params.id]);
+    } else {
+      await new Promise((resolve, reject) => {
+        db.run('DELETE FROM products WHERE id = ?', [req.params.id], function(err) {
+          if (err) reject(err); else resolve();
+        });
+      });
+    }
     res.json({ success: true });
-  });
+  } catch (err) {
+    console.error('DELETE /admin/products error:', err);
+    res.status(500).json({ error: 'Failed to delete product' });
+  }
 });
 
 // ===================== ORDERS ======================
