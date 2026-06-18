@@ -68,9 +68,9 @@ export const Router = ({ children, fallback = null }) => {
       const regexStr = normalizedPath.replace(/:([^\/]+)/g, () => {
         return '([^/]+)';
       });
-      // Anchored strictly
-      const regex = new RegExp(`^${regexStr}$`);
-      const match = normalizedCurrentPath.match(regex);
+      // Anchored strictly, case-insensitive regex
+      const regex = new RegExp(`^${regexStr}$`, 'i');
+      const match = cp.replace(/\/$/, '').match(regex);
 
       if (match) {
         keys.forEach((key, index) => {

@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const router = express.Router();
 const db = require('./database');
 const { verifyAdminToken } = require('./utils/adminToken');
@@ -150,7 +150,7 @@ router.get('/', async (req, res) => {
 router.get('/article/:handle', async (req, res) => {
   try {
     const { handle } = req.params;
-    const row = await db.getAsync('SELECT * FROM blogs WHERE handle = ? LIMIT 1', [handle]);
+    const row = await db.getAsync('SELECT * FROM blogs WHERE LOWER(handle) = LOWER(?) LIMIT 1', [handle]);
     if (!row) return res.status(404).json({ error: 'Not found' });
     res.json(formatBlog(row));
   } catch (e) {
