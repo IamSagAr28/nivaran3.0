@@ -205,6 +205,9 @@ export function getOptimizedImageUrl(
   height: number = 300
 ): string {
   if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
 
   // If URL already has parameters, append with &
   const separator = url.includes('?') ? '&' : '?';

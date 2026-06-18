@@ -59,8 +59,13 @@ export const Router = ({ children, fallback = null }) => {
     // Parameter match (e.g. /blogs/:handle)
     if (path.includes(':')) {
       const keys = [];
-      const regexStr = normalizedPath.replace(/:([^\/]+)/g, (_, key) => {
+      // Extract keys from original path to preserve case (e.g. blogHandle)
+      path.replace(/:([^\/]+)/g, (_, key) => {
         keys.push(key);
+        return '';
+      });
+
+      const regexStr = normalizedPath.replace(/:([^\/]+)/g, () => {
         return '([^/]+)';
       });
       // Anchored strictly

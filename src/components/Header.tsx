@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, ShoppingBag, User, Menu, LogOut } from "lucide-react";
 import { useRouter } from "../utils/Router";
-import { useCart } from "../contexts/CartContext";
+import { useShopCart } from "../contexts/ShopCartContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useShopifyProducts } from "../hooks/useShopifyProducts";
 import { getOptimizedImageUrl } from "../shopify/client";
@@ -106,7 +106,7 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
 
 export function Header({ showCategories = false }: { showCategories?: boolean }) {
   const { navigateTo, currentPath } = useRouter();
-  const { itemCount } = useCart();
+  const { totalItems: itemCount } = useShopCart();
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { products, loading, error } = useShopifyProducts();

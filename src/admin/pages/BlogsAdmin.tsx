@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Plus, Trash2, Edit2, Save, X } from 'lucide-react';
+import { Search, Plus, Trash2, Edit2, Save, X, Upload } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import { apiUrl } from '../../utils/shopApi';
 
@@ -26,6 +26,47 @@ function slugify(input: string) {
     .slice(0, 80);
 }
 
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8MB input file cap
+const IMAGE_MAX_DIM = 1600; // resize longest side
+const IMAGE_JPEG_QUALITY = 0.82;
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function compressImageToDataUrl(file: File): Promise<string> {
+  const dataUrl = await fileToDataUrl(file);
+  const img = new Image();
+
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('Invalid image'));
+    img.src = dataUrl;
+  });
+
+  const width = img.naturalWidth || img.width;
+  const height = img.naturalHeight || img.height;
+  if (!width || !height) return dataUrl;
+
+  const scale = Math.min(1, IMAGE_MAX_DIM / Math.max(width, height));
+  const outW = Math.max(1, Math.round(width * scale));
+  const outH = Math.max(1, Math.round(height * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = outW;
+  canvas.height = outH;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return dataUrl;
+  ctx.drawImage(img, 0, 0, outW, outH);
+
+  return canvas.toDataURL('image/jpeg', IMAGE_JPEG_QUALITY);
+}
+
 export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
   const [blogs, setBlogs] = useState<BlogRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +75,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
 
   const [isCreating, setIsCreating] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -252,6 +294,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
                 <input
                   value={form.image_url}
                   onChange={(e) => setForm((p) => ({ ...p, image_url: e.target.value }))}
+                  placeholder="Paste URL or upload image file below"
                 />
               </div>
               <div className="form-group">
@@ -260,6 +303,60 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
                   value={form.image_alt}
                   onChange={(e) => setForm((p) => ({ ...p, image_alt: e.target.value }))}
                 />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Upload Image File</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <label className="admin-btn secondary" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <Upload size={16} />
+                    {uploadingImage ? 'Processing...' : 'Choose File'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      disabled={uploadingImage}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > MAX_IMAGE_BYTES) {
+                          alert('Image is too large. Max: 8MB');
+                          return;
+                        }
+                        try {
+                          setUploadingImage(true);
+                          const base64 = await compressImageToDataUrl(file);
+                          setForm(p => ({ ...p, image_url: base64 }));
+                        } catch (err) {
+                          alert('Failed to process image');
+                        } finally {
+                          setUploadingImage(false);
+                        }
+                      }}
+                    />
+                  </label>
+                  {form.image_url && (
+                    <button
+                      type="button"
+                      className="admin-btn secondary"
+                      onClick={() => setForm(p => ({ ...p, image_url: '' }))}
+                    >
+                      Clear Image
+                    </button>
+                  )}
+                </div>
+                {form.image_url && form.image_url.startsWith('data:') && (
+                  <div style={{ marginTop: 8 }}>
+                    <p style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>Uploaded Image Preview:</p>
+                    <img
+                      src={form.image_url}
+                      alt="Uploaded Preview"
+                      style={{ maxWidth: 150, maxHeight: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 

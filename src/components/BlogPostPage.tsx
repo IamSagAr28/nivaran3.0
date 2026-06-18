@@ -18,7 +18,8 @@ const BlogPostPage: React.FC<BlogPostPageProps> = ({ params }) => {
     const [article, setArticle] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const { navigateTo } = useRouter();
-    const { blogHandle, articleHandle } = params;
+    const blogHandle = params.blogHandle || params.bloghandle;
+    const articleHandle = params.articleHandle || params.articlehandle;
 
     useEffect(() => {
         const loadArticle = async () => {
