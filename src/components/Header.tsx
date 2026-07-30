@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Search, ShoppingBag, User, Menu, LogOut } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Search, ShoppingBag, User, Menu, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "../utils/Router";
 import { useShopCart } from "../contexts/ShopCartContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -127,15 +127,23 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { products: shopifyProducts } = useShopifyProducts();
+  const categoryStripRef = useRef<HTMLDivElement>(null);
   const [categories, setCategories] = useState<any[]>(DEFAULT_CATEGORIES);
   const [loadingCategories, setLoadingCategories] = useState(false);
+
+  const scrollCategoryStrip = (direction: 'left' | 'right') => {
+    if (categoryStripRef.current) {
+      const scrollAmount = direction === 'left' ? -350 : 350;
+      categoryStripRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
     async function loadDynamicCategories() {
       try {
         setLoadingCategories(true);
-        // 1. Fetch backend products (without heavy base64 images payload) and categories
+        // 1. Fetch backend products and categories
         const [productsRes, categoriesRes] = await Promise.all([
           fetchProducts().catch(() => ({ products: [] })),
           fetchCategories().catch(() => ({ categories: [] }))
@@ -149,17 +157,23 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
         if (dbProducts.length > 0) {
           dbProducts.forEach((p: any) => {
             const catName = p.category;
-            if (catName && !categoryMap.has(catName)) {
-              const img = apiUrl(`/api/products/${p.id}/media/0`);
-              categoryMap.set(catName, { name: catName, image: img });
+            if (catName && typeof catName === 'string') {
+              const normKey = catName.trim().toLowerCase();
+              if (!categoryMap.has(normKey)) {
+                const img = apiUrl(`/api/products/${p.id}/media/0`);
+                categoryMap.set(normKey, { name: catName.trim(), image: img });
+              }
             }
           });
         }
 
         // Add any missing categories from dbCategoriesList
         dbCategoriesList.forEach(catName => {
-          if (catName && !categoryMap.has(catName)) {
-            categoryMap.set(catName, { name: catName, image: '' });
+          if (catName && typeof catName === 'string') {
+            const normKey = catName.trim().toLowerCase();
+            if (!categoryMap.has(normKey)) {
+              categoryMap.set(normKey, { name: catName.trim(), image: '' });
+            }
           }
         });
 
@@ -168,8 +182,11 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
           shopifyProducts.forEach((product: any) => {
             const type = product.productType || (product.tags && product.tags.length > 0 ? product.tags[0] : null);
             const imageUrl = product.images?.edges?.[0]?.node?.url || product.images?.[0]?.url || product.image?.url || '';
-            if (type && !categoryMap.has(type) && imageUrl) {
-              categoryMap.set(type, { name: type, image: imageUrl });
+            if (type && typeof type === 'string') {
+              const normKey = type.trim().toLowerCase();
+              if (!categoryMap.has(normKey) && imageUrl) {
+                categoryMap.set(normKey, { name: type.trim(), image: imageUrl });
+              }
             }
           });
         }
@@ -415,47 +432,45 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
         </div>
       )}
 
-      {/* Category Icons Strip */}
+      {/* Category Icons Strip - Single Horizontal Scrollable Line */}
       {showCategories && (
-        <div className="border-t border-[#e5e7eb]" style={{ backgroundColor: '#F7F1E5' }}>
-          <div className="mx-auto px-4 py-6" style={{ maxWidth: '1200px' }}>
+        <div className="border-t border-[#e5e7eb] relative group" style={{ backgroundColor: '#F7F1E5' }}>
+          <div className="mx-auto px-4 py-3 relative flex items-center" style={{ maxWidth: '1280px' }}>
+            {/* Scroll Left Button */}
+            <button
+              onClick={() => scrollCategoryStrip('left')}
+              className="hidden md:flex absolute left-2 z-20 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              title="Scroll Left"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            {/* Category Strip Container */}
             <div
-              className="category-strip"
+              ref={categoryStripRef}
+              className="category-strip flex items-center gap-6 overflow-x-auto scroll-smooth py-2 px-6 w-full"
               style={{
-                display: 'grid',
-                gridTemplateColumns: loadingCategories || categories.length === 0 ? 'repeat(9, 1fr)' : `repeat(${Math.min(categories.length, 9)}, 1fr)`,
-                gap: '1.5rem',
-                alignItems: 'start',
-                justifyItems: 'center',
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
                 overflowX: 'auto',
-                scrollSnapType: 'x mandatory',
+                overflowY: 'hidden',
+                scrollBehavior: 'smooth',
                 WebkitOverflowScrolling: 'touch',
-                scrollbarWidth: 'none',
-                msOverflowStyle: 'none',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#DBB520 transparent',
               }}
             >
               <style>{`
                 .category-strip::-webkit-scrollbar {
-                  display: none;
+                  height: 4px;
                 }
-                
-                @media (max-width: 899px) {
-                  .category-strip {
-                    display: flex !important;
-                    flex-wrap: nowrap !important;
-                    overflow-x: auto !important;
-                    justify-content: start !important;
-                    gap: 1rem !important;
-                    padding-left: 0.5rem;
-                    padding-right: 0.5rem;
-                  }
+                .category-strip::-webkit-scrollbar-track {
+                  background: transparent;
                 }
-                
-                @media (min-width: 900px) {
-                  .category-strip {
-                    display: grid !important;
-                    overflow-x: visible !important;
-                  }
+                .category-strip::-webkit-scrollbar-thumb {
+                  background: #DBB520;
+                  border-radius: 4px;
                 }
               `}</style>
               {loadingCategories ? (
@@ -480,6 +495,15 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
                 <div className="w-full text-center text-gray-500 py-4">No categories found</div>
               )}
             </div>
+
+            {/* Scroll Right Button */}
+            <button
+              onClick={() => scrollCategoryStrip('right')}
+              className="hidden md:flex absolute right-2 z-20 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              title="Scroll Right"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
           </div>
         </div>
       )}
