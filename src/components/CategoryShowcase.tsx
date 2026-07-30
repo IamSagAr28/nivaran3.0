@@ -5,10 +5,17 @@ import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useRouter } from '../utils/Router';
 import { fetchProducts, fetchCategories, apiUrl } from '../utils/shopApi';
 
+const DEFAULT_SHOWCASE_CATEGORIES = [
+  { name: 'Upcycled Bags', productType: 'Upcycled Bags', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80', handle: 'upcycled-bags', isIndividualProduct: false },
+  { name: 'Handmade Paper', productType: 'Handmade Paper', image: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80', handle: 'handmade-paper', isIndividualProduct: false },
+  { name: 'Eco Stationery', productType: 'Eco Stationery', image: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=600&q=80', handle: 'eco-stationery', isIndividualProduct: false },
+  { name: 'Home Decor', productType: 'Home Decor', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=600&q=80', handle: 'home-decor', isIndividualProduct: false },
+];
+
 export function CategoryShowcase() {
   const { products: shopifyProducts } = useShopifyProducts();
   const { navigateTo } = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>(DEFAULT_SHOWCASE_CATEGORIES);
   const [backgroundOffset, setBackgroundOffset] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -17,7 +24,7 @@ export function CategoryShowcase() {
     async function loadCategories() {
       try {
         const [productsRes] = await Promise.all([
-          fetchProducts({ includeImages: '1' }).catch(() => ({ products: [] })),
+          fetchProducts().catch(() => ({ products: [] })),
         ]);
 
         const dbProducts = productsRes.products || [];
@@ -27,14 +34,7 @@ export function CategoryShowcase() {
           dbProducts.forEach((p: any) => {
             const catName = p.category || 'Other';
             if (!categoryMap.has(catName)) {
-              let img = '';
-              if (p.images && p.images.length > 0) {
-                img = p.images[0].startsWith('http') || p.images[0].startsWith('data:')
-                  ? p.images[0]
-                  : apiUrl(`/api/products/${p.id}/media/0`);
-              } else {
-                img = apiUrl(`/api/products/${p.id}/media/0`);
-              }
+              const img = apiUrl(`/api/products/${p.id}/media/0`);
               categoryMap.set(catName, {
                 name: catName,
                 productType: catName,
@@ -63,25 +63,20 @@ export function CategoryShowcase() {
 
         let categoriesArray = Array.from(categoryMap.values());
 
-        // Fill up to 4 items with products if less than 4 categories
-        if (categoriesArray.length < 4 && dbProducts.length > 0) {
-          const existingHandles = new Set(categoriesArray.map(c => String(c.handle)));
-          const additional = dbProducts
-            .filter((p: any) => !existingHandles.has(String(p.id)))
-            .slice(0, 4 - categoriesArray.length)
-            .map((p: any) => ({
-              name: p.title,
-              productType: p.category || 'Other',
-              image: p.images && p.images[0] ? (p.images[0].startsWith('http') || p.images[0].startsWith('data:') ? p.images[0] : apiUrl(`/api/products/${p.id}/media/0`)) : apiUrl(`/api/products/${p.id}/media/0`),
-              handle: p.id,
-              isIndividualProduct: true
-            }));
-          categoriesArray = [...categoriesArray, ...additional];
-        } else if (categoriesArray.length > 4) {
+        // Fill up to 4 items with default showcase categories if less than 4 categories
+        if (categoriesArray.length < 4) {
+          const existingNames = new Set(categoriesArray.map(c => c.name.toLowerCase()));
+          DEFAULT_SHOWCASE_CATEGORIES.forEach(def => {
+            if (categoriesArray.length < 4 && !existingNames.has(def.name.toLowerCase())) {
+              categoriesArray.push(def);
+            }
+          });
+        }
+        if (categoriesArray.length > 4) {
           categoriesArray = categoriesArray.slice(0, 4);
         }
 
-        if (isMounted) {
+        if (isMounted && categoriesArray.length > 0) {
           setCategories(categoriesArray);
         }
       } catch (err) {

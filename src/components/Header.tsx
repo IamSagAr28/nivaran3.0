@@ -111,23 +111,33 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
   );
 }
 
+const DEFAULT_CATEGORIES = [
+  { name: 'Upcycled Bags', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Handmade Paper', image: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Eco Stationery', image: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Home Decor', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Sustainable Crafts', image: 'https://images.unsplash.com/photo-1610177498701-4f00c0bd1694?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Upcycled Fabric', image: 'https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?auto=format&fit=crop&w=400&q=80' },
+  { name: 'Eco Gifts', image: 'https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=400&q=80' },
+];
+
 export function Header({ showCategories = false }: { showCategories?: boolean }) {
   const { navigateTo, currentPath } = useRouter();
   const { totalItems: itemCount } = useShopCart();
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { products: shopifyProducts } = useShopifyProducts();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categories, setCategories] = useState<any[]>(DEFAULT_CATEGORIES);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     async function loadDynamicCategories() {
       try {
         setLoadingCategories(true);
-        // 1. Try fetching backend products and categories
+        // 1. Fetch backend products (without heavy base64 images payload) and categories
         const [productsRes, categoriesRes] = await Promise.all([
-          fetchProducts({ includeImages: '1' }).catch(() => ({ products: [] })),
+          fetchProducts().catch(() => ({ products: [] })),
           fetchCategories().catch(() => ({ categories: [] }))
         ]);
 
@@ -140,14 +150,7 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
           dbProducts.forEach((p: any) => {
             const catName = p.category;
             if (catName && !categoryMap.has(catName)) {
-              let img = '';
-              if (p.images && p.images.length > 0) {
-                img = p.images[0].startsWith('http') || p.images[0].startsWith('data:')
-                  ? p.images[0]
-                  : apiUrl(`/api/products/${p.id}/media/0`);
-              } else {
-                img = apiUrl(`/api/products/${p.id}/media/0`);
-              }
+              const img = apiUrl(`/api/products/${p.id}/media/0`);
               categoryMap.set(catName, { name: catName, image: img });
             }
           });
@@ -173,18 +176,17 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
 
         let result = Array.from(categoryMap.values());
 
-        // Fill up with products as individual items if less than 9 categories
-        if (result.length < 9 && dbProducts.length > 0) {
-          const existing = new Set(result.map(c => c.name));
-          dbProducts.forEach((p: any) => {
-            if (result.length < 9 && !existing.has(p.title)) {
-              const img = p.images && p.images[0] ? (p.images[0].startsWith('http') || p.images[0].startsWith('data:') ? p.images[0] : apiUrl(`/api/products/${p.id}/media/0`)) : apiUrl(`/api/products/${p.id}/media/0`);
-              result.push({ name: p.title, image: img });
+        // Fill up to 7-9 items with DEFAULT_CATEGORIES if not enough categories
+        if (result.length < 7) {
+          const existingNames = new Set(result.map(c => c.name.toLowerCase()));
+          DEFAULT_CATEGORIES.forEach(defCat => {
+            if (result.length < 9 && !existingNames.has(defCat.name.toLowerCase())) {
+              result.push(defCat);
             }
           });
         }
 
-        if (isMounted) {
+        if (isMounted && result.length > 0) {
           setCategories(result);
         }
       } catch (err) {

@@ -163,7 +163,7 @@ export function HeroSlideshow() {
             width: '100%',
             height: '100%',
             backgroundColor: '#2A2A2A', // Fallback color
-            backgroundImage: `url(${slide.image}?t=${new Date().getTime()})`,
+            backgroundImage: `url(${slide.image})`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             opacity: index === currentSlide ? 1 : 0,
