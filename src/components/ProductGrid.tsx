@@ -42,7 +42,7 @@ export function ProductGrid({ title = "Featured Products", subtitle = "Handcraft
                 <ImageWithFallback
                   src={product.image}
                   alt={product.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  className="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
                 />
               </div>
               <div className="space-y-1">

@@ -533,16 +533,22 @@ export default function ShopPage() {
 
         .product-media {
           height: 240px;
-          background: #f1f1f1;
+          background: #f8f9fa;
           position: relative;
           overflow: hidden;
           cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 8px;
         }
 
         .product-media img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
+          max-width: 100%;
+          max-height: 100%;
+          width: auto;
+          height: auto;
+          object-fit: contain;
         }
 
         .media-fallback {

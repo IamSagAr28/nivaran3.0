@@ -3,62 +3,97 @@ import { useShopifyProducts } from '../hooks/useShopifyProducts';
 import { getOptimizedImageUrl } from '../shopify/client';
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useRouter } from '../utils/Router';
+import { fetchProducts, fetchCategories, apiUrl } from '../utils/shopApi';
 
 export function CategoryShowcase() {
-  const { products } = useShopifyProducts();
+  const { products: shopifyProducts } = useShopifyProducts();
   const { navigateTo } = useRouter();
   const [categories, setCategories] = useState<any[]>([]);
   const [backgroundOffset, setBackgroundOffset] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
-    if (products && products.length > 0) {
-      // Group products by type and get first product from each type
-      const categoryMap = new Map();
+    let isMounted = true;
+    async function loadCategories() {
+      try {
+        const [productsRes] = await Promise.all([
+          fetchProducts({ includeImages: '1' }).catch(() => ({ products: [] })),
+        ]);
 
-      products.forEach((product: any) => {
-        const type = product.productType || 'Other';
-        if (!categoryMap.has(type)) {
-          categoryMap.set(type, product);
-        }
-      });
+        const dbProducts = productsRes.products || [];
+        const categoryMap = new Map();
 
-      // Convert to array - show up to 4 categories, or if not enough types, show first 4 products
-      let categoriesArray = Array.from(categoryMap.values()).map((product: any) => {
-        const productType = product.productType || 'Other';
-        return {
-          name: productType,
-          productType: productType, // Store the actual type used for grouping
-          image: product.images.edges[0]?.node.url || '',
-          handle: product.handle
-        };
-      });
-
-      console.log('📂 Categories created:', categoriesArray);
-
-      // If we have less than 4 categories, add individual products as categories
-      if (categoriesArray.length < 4) {
-        const additionalProducts = products
-          .filter((p: any) => !categoriesArray.some(c => c.handle === p.handle))
-          .slice(0, 4 - categoriesArray.length)
-          .map((product: any) => {
-            const productType = product.productType || 'Other';
-            return {
-              name: product.title,
-              productType: productType, // Use the actual productType for filtering
-              image: product.images.edges[0]?.node.url || '',
-              handle: product.handle,
-              isIndividualProduct: true // Flag to indicate this is a specific product, not a category
-            };
+        if (dbProducts.length > 0) {
+          dbProducts.forEach((p: any) => {
+            const catName = p.category || 'Other';
+            if (!categoryMap.has(catName)) {
+              let img = '';
+              if (p.images && p.images.length > 0) {
+                img = p.images[0].startsWith('http') || p.images[0].startsWith('data:')
+                  ? p.images[0]
+                  : apiUrl(`/api/products/${p.id}/media/0`);
+              } else {
+                img = apiUrl(`/api/products/${p.id}/media/0`);
+              }
+              categoryMap.set(catName, {
+                name: catName,
+                productType: catName,
+                image: img,
+                handle: p.id,
+                isIndividualProduct: false
+              });
+            }
           });
-        categoriesArray = [...categoriesArray, ...additionalProducts];
-      } else {
-        categoriesArray = categoriesArray.slice(0, 4);
-      }
+        }
 
-      setCategories(categoriesArray);
+        if (shopifyProducts && shopifyProducts.length > 0) {
+          shopifyProducts.forEach((product: any) => {
+            const type = product.productType || 'Other';
+            if (!categoryMap.has(type)) {
+              categoryMap.set(type, {
+                name: type,
+                productType: type,
+                image: product.images?.edges?.[0]?.node?.url || '',
+                handle: product.handle,
+                isIndividualProduct: false
+              });
+            }
+          });
+        }
+
+        let categoriesArray = Array.from(categoryMap.values());
+
+        // Fill up to 4 items with products if less than 4 categories
+        if (categoriesArray.length < 4 && dbProducts.length > 0) {
+          const existingHandles = new Set(categoriesArray.map(c => String(c.handle)));
+          const additional = dbProducts
+            .filter((p: any) => !existingHandles.has(String(p.id)))
+            .slice(0, 4 - categoriesArray.length)
+            .map((p: any) => ({
+              name: p.title,
+              productType: p.category || 'Other',
+              image: p.images && p.images[0] ? (p.images[0].startsWith('http') || p.images[0].startsWith('data:') ? p.images[0] : apiUrl(`/api/products/${p.id}/media/0`)) : apiUrl(`/api/products/${p.id}/media/0`),
+              handle: p.id,
+              isIndividualProduct: true
+            }));
+          categoriesArray = [...categoriesArray, ...additional];
+        } else if (categoriesArray.length > 4) {
+          categoriesArray = categoriesArray.slice(0, 4);
+        }
+
+        if (isMounted) {
+          setCategories(categoriesArray);
+        }
+      } catch (err) {
+        console.error('CategoryShowcase: Failed to load categories', err);
+      }
     }
-  }, [products]);
+
+    loadCategories();
+    return () => {
+      isMounted = false;
+    };
+  }, [shopifyProducts]);
 
   // Parallax scroll effect
   useEffect(() => {

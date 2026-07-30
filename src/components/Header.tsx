@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useShopifyProducts } from "../hooks/useShopifyProducts";
 import { getOptimizedImageUrl } from "../shopify/client";
 import { UserAvatar } from "./UserAvatar";
+import { fetchProducts, fetchCategories, apiUrl } from "../utils/shopApi";
 
 function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (path: string) => void }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -36,6 +37,12 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
   const liftY = isHovered ? -8 : 0;
   // Scale effect
   const scale = isHovered ? 1.1 : 1;
+
+  const imageSrc = category.image
+    ? (category.image.startsWith('http') || category.image.startsWith('/') || category.image.startsWith('data:')
+        ? category.image
+        : getOptimizedImageUrl(category.image, 400, 400))
+    : '';
 
   return (
     <>
@@ -79,7 +86,7 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
           }}
         >
           <img
-            src={getOptimizedImageUrl(category.image, 400, 400)}
+            src={imageSrc}
             alt={category.name}
             loading="lazy"
             style={{
@@ -93,7 +100,7 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
               const target = e.target as HTMLImageElement;
               target.style.display = 'none';
               if (target.parentElement) {
-                target.parentElement.innerHTML = '<div class="w-full h-full bg-[#DBB520] group-hover:bg-[#F8D548] rounded-full transition-colors"></div>';
+                target.parentElement.innerHTML = '<div class="w-full h-full bg-[#DBB520] group-hover:bg-[#F8D548] rounded-full transition-colors flex items-center justify-center font-bold text-white text-xl">♻️</div>';
               }
             }}
           />
@@ -109,112 +116,90 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
   const { totalItems: itemCount } = useShopCart();
   const { user, isAuthenticated, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { products, loading, error } = useShopifyProducts();
+  const { products: shopifyProducts } = useShopifyProducts();
   const [categories, setCategories] = useState<any[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
 
   useEffect(() => {
-    if (error) {
-      console.error('Error loading products for categories:', error);
-      setCategories([]);
-      return;
-    }
+    let isMounted = true;
+    async function loadDynamicCategories() {
+      try {
+        setLoadingCategories(true);
+        // 1. Try fetching backend products and categories
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetchProducts({ includeImages: '1' }).catch(() => ({ products: [] })),
+          fetchCategories().catch(() => ({ categories: [] }))
+        ]);
 
-    if (products && products.length > 0) {
-      console.log(`Processing ${products.length} products for categories`);
-      const categoryMap = new Map();
-      products.forEach((product: any) => {
-        // Use productType if available, otherwise fallback to first tag, or product title
-        const type = product.productType || (product.tags && product.tags.length > 0 ? product.tags[0] : null);
+        const dbProducts = productsRes.products || [];
+        const dbCategoriesList: string[] = categoriesRes.categories || [];
 
-        // Get image URL - check images.edges structure
-        const imageUrl = product.images?.edges?.[0]?.node?.url ||
-          product.images?.[0]?.url ||
-          product.image?.url ||
-          '';
+        const categoryMap = new Map<string, { name: string; image: string }>();
 
-        if (type && !categoryMap.has(type) && imageUrl) {
-          categoryMap.set(type, {
-            name: type,
-            image: imageUrl
+        if (dbProducts.length > 0) {
+          dbProducts.forEach((p: any) => {
+            const catName = p.category;
+            if (catName && !categoryMap.has(catName)) {
+              let img = '';
+              if (p.images && p.images.length > 0) {
+                img = p.images[0].startsWith('http') || p.images[0].startsWith('data:')
+                  ? p.images[0]
+                  : apiUrl(`/api/products/${p.id}/media/0`);
+              } else {
+                img = apiUrl(`/api/products/${p.id}/media/0`);
+              }
+              categoryMap.set(catName, { name: catName, image: img });
+            }
           });
         }
-      });
 
-      let categoriesArray = Array.from(categoryMap.values());
-      console.log(`Found ${categoriesArray.length} categories from product types`);
-
-      // If we have fewer than 9 categories, fill with individual products that have images
-      if (categoriesArray.length < 9) {
-        const existingNames = new Set(categoriesArray.map(c => c.name));
-        const additionalProducts = products
-          .filter((p: any) => {
-            const hasImage = p.images?.edges?.[0]?.node?.url ||
-              p.images?.[0]?.url ||
-              p.image?.url;
-            return !existingNames.has(p.title) && hasImage;
-          })
-          .slice(0, 9 - categoriesArray.length)
-          .map((product: any) => ({
-            name: product.title,
-            image: product.images?.edges?.[0]?.node?.url ||
-              product.images?.[0]?.url ||
-              product.image?.url ||
-              ''
-          }));
-        categoriesArray = [...categoriesArray, ...additionalProducts];
-        console.log(`Added ${additionalProducts.length} products as categories, total: ${categoriesArray.length}`);
-      }
-
-      // If still no categories, try using collections
-      if (categoriesArray.length === 0) {
-        products.forEach((product: any) => {
-          if (product.collections?.edges && product.collections.edges.length > 0) {
-            product.collections.edges.forEach((edge: any) => {
-              const collectionName = edge.node?.title || edge.node?.handle;
-              const imageUrl = product.images?.edges?.[0]?.node?.url ||
-                product.images?.[0]?.url ||
-                product.image?.url ||
-                '';
-
-              if (collectionName && !categoryMap.has(collectionName) && imageUrl) {
-                categoryMap.set(collectionName, {
-                  name: collectionName,
-                  image: imageUrl
-                });
-              }
-            });
+        // Add any missing categories from dbCategoriesList
+        dbCategoriesList.forEach(catName => {
+          if (catName && !categoryMap.has(catName)) {
+            categoryMap.set(catName, { name: catName, image: '' });
           }
         });
-        categoriesArray = Array.from(categoryMap.values());
-        console.log(`Found ${categoriesArray.length} categories from collections`);
-      }
 
-      // Final fallback: use any products with images as categories
-      if (categoriesArray.length === 0) {
-        categoriesArray = products
-          .filter((p: any) => {
-            return p.images?.edges?.[0]?.node?.url ||
-              p.images?.[0]?.url ||
-              p.image?.url;
-          })
-          .slice(0, 9)
-          .map((product: any) => ({
-            name: product.title,
-            image: product.images?.edges?.[0]?.node?.url ||
-              product.images?.[0]?.url ||
-              product.image?.url ||
-              ''
-          }));
-        console.log(`Using ${categoriesArray.length} products as categories (fallback)`);
-      }
+        // 2. Fallback or merge with Shopify products if available
+        if (shopifyProducts && shopifyProducts.length > 0) {
+          shopifyProducts.forEach((product: any) => {
+            const type = product.productType || (product.tags && product.tags.length > 0 ? product.tags[0] : null);
+            const imageUrl = product.images?.edges?.[0]?.node?.url || product.images?.[0]?.url || product.image?.url || '';
+            if (type && !categoryMap.has(type) && imageUrl) {
+              categoryMap.set(type, { name: type, image: imageUrl });
+            }
+          });
+        }
 
-      setCategories(categoriesArray);
-    } else if (!loading && products && products.length === 0) {
-      // Products loaded but empty
-      console.warn('No products found to display categories');
-      setCategories([]);
+        let result = Array.from(categoryMap.values());
+
+        // Fill up with products as individual items if less than 9 categories
+        if (result.length < 9 && dbProducts.length > 0) {
+          const existing = new Set(result.map(c => c.name));
+          dbProducts.forEach((p: any) => {
+            if (result.length < 9 && !existing.has(p.title)) {
+              const img = p.images && p.images[0] ? (p.images[0].startsWith('http') || p.images[0].startsWith('data:') ? p.images[0] : apiUrl(`/api/products/${p.id}/media/0`)) : apiUrl(`/api/products/${p.id}/media/0`);
+              result.push({ name: p.title, image: img });
+            }
+          });
+        }
+
+        if (isMounted) {
+          setCategories(result);
+        }
+      } catch (err) {
+        console.error('Failed to load dynamic categories:', err);
+      } finally {
+        if (isMounted) setLoadingCategories(false);
+      }
     }
-  }, [products, loading, error]);
+
+    loadDynamicCategories();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [shopifyProducts]);
 
   const handleNav = (sectionId: string) => {
     if (currentPath !== '/') {
@@ -436,7 +421,7 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
               className="category-strip"
               style={{
                 display: 'grid',
-                gridTemplateColumns: loading || categories.length === 0 ? 'repeat(9, 1fr)' : `repeat(${Math.min(categories.length, 9)}, 1fr)`,
+                gridTemplateColumns: loadingCategories || categories.length === 0 ? 'repeat(9, 1fr)' : `repeat(${Math.min(categories.length, 9)}, 1fr)`,
                 gap: '1.5rem',
                 alignItems: 'start',
                 justifyItems: 'center',
@@ -471,7 +456,7 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
                   }
                 }
               `}</style>
-              {loading ? (
+              {loadingCategories ? (
                 Array(9).fill(0).map((_, i) => (
                   <div key={i} className="flex flex-col items-center gap-3 min-w-[80px] flex-shrink-0">
                     <div

@@ -12,12 +12,12 @@ export default function ProductCard({product, onQuickView, onAddToCart}:{product
         onMouseEnter={()=>setHover(true)}
         onMouseLeave={()=>setHover(false)}
         onClick={()=>onQuickView(product)}
-        className="relative w-full h-64 bg-gray-100 cursor-pointer"
+        className="relative w-full h-64 bg-gray-50 cursor-pointer flex items-center justify-center p-2"
       >
         <img
           src={hover ? product.images[1] ?? product.images[0] : product.images[0]}
           alt={product.title}
-          className="w-full h-full object-cover"
+          className="max-w-full max-h-full object-contain"
         />
         <div className="absolute top-3 right-3 z-10">
           <WishlistIcon filled={wish} onClick={() => setWish(!wish)} />
