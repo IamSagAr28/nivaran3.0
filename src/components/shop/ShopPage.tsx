@@ -48,7 +48,10 @@ function getProductDetailUrl(p: Product) {
       const code = CITY_TO_CODE[prefCity.toLowerCase()] || 'kn';
       const baseSlug = (p.custom_slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
       const citySlugPart = prefCity.toLowerCase().replace(/\s+/g, '-');
-      return `/${code}/${baseSlug}-in-${citySlugPart}`;
+      if (p.custom_slug) {
+        return `/${code}/${p.custom_slug}-in-${citySlugPart}`;
+      }
+      return `/${code}/${p.id}-${baseSlug}-in-${citySlugPart}`;
     }
   } catch {}
   return `/product/${p.id}`;

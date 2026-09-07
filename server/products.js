@@ -137,53 +137,98 @@ router.get('/:id/media/:index', async (req, res) => {
   }
 });
 
-// GET /api/products/:id — single product (public by ID, custom_slug, or title slug)
+// GET /api/products/:id — single product (public by ID, custom_slug, or exact title slug)
 router.get('/:id', async (req, res) => {
   try {
     const param = String(req.params.id || '').trim();
+    if (!param) return res.status(400).json({ error: 'Missing product identifier' });
+
     let product = null;
 
-    // 1. If numeric ID
+    // 1. If pure numeric ID: e.g. "40"
     if (/^\d+$/.test(param)) {
       product = await db.getAsync('SELECT * FROM products WHERE id = ?', [param]);
+      if (product) return res.json(parseProduct(product));
     }
 
-    // 2. Lookup by exact custom_slug or city_slugs JSON
-    if (!product && param) {
-      product = await db.getAsync('SELECT * FROM products WHERE custom_slug = ? OR city_slugs LIKE ?', [param.toLowerCase(), `%"${param.toLowerCase()}"%`]);
+    // 2. If starts with numeric ID followed by hyphen: e.g. "40-jute-bag" or "40-jute-bag-in-kanpur"
+    const idPrefixMatch = param.match(/^(\d+)-/);
+    if (idPrefixMatch) {
+      product = await db.getAsync('SELECT * FROM products WHERE id = ?', [idPrefixMatch[1]]);
+      if (product) return res.json(parseProduct(product));
     }
 
-    // 3. If param contains city suffix (e.g. "jute-bags-in-kanpur"), strip "-in-..." and match custom_slug or city_slugs
-    if (!product && param) {
-      const stripped = param.toLowerCase().replace(/-in-[a-z0-9-]+$/, '');
-      if (stripped && stripped !== param) {
-        product = await db.getAsync('SELECT * FROM products WHERE custom_slug = ? OR city_slugs LIKE ?', [stripped, `%"${stripped}"%`]);
-      }
-    }
-
-    // 4. Match against product title
-    if (!product && param) {
-      const cleanSlug = param.toLowerCase().replace(/-in-[a-z0-9-]+$/, '').replace(/[^a-z0-9]+/g, ' ').trim();
-      if (cleanSlug) {
-        product = await db.getAsync(
-          'SELECT * FROM products WHERE LOWER(title) LIKE ? OR LOWER(custom_slug) LIKE ?',
-          [`%${cleanSlug}%`, `%${cleanSlug}%`]
-        );
-      }
-    }
-
-    // 5. Fallback: match by first word
-    if (!product && param) {
-      const firstWord = param.split('-')[0].toLowerCase().trim();
-      if (firstWord.length >= 3) {
-        product = await db.getAsync('SELECT * FROM products WHERE LOWER(title) LIKE ?', [`%${firstWord}%`]);
-      }
-    }
-
-    // 6. Final fallback: match by legacy mock IDs (p1, p2...)
-    if (!product && /^p\d+$/i.test(param)) {
+    // 3. Match by legacy mock IDs (p1, p2...)
+    if (/^p\d+$/i.test(param)) {
       const numericId = param.replace(/^p/i, '');
       product = await db.getAsync('SELECT * FROM products WHERE id = ?', [numericId]);
+      if (product) return res.json(parseProduct(product));
+    }
+
+    // Extract stripped slug (without -in-city suffix if present)
+    const stripped = param.toLowerCase().replace(/-in-[a-z0-9-]+$/, '').trim();
+
+    // 4. Exact custom_slug match
+    product = await db.getAsync(
+      'SELECT * FROM products WHERE LOWER(custom_slug) = ? OR LOWER(custom_slug) = ?',
+      [param.toLowerCase(), stripped]
+    );
+    if (product) return res.json(parseProduct(product));
+
+    // 5. Exact city_slugs match inside JSON
+    product = await db.getAsync(
+      'SELECT * FROM products WHERE city_slugs LIKE ? OR city_slugs LIKE ?',
+      [`%"${param.toLowerCase()}"%`, `%"${stripped}"%`]
+    );
+    if (product) return res.json(parseProduct(product));
+
+    // 6. EXACT normalized title match (e.g. title "Jute bag" matches "jute-bag" or "jute bag")
+    const cleanSlug = stripped.replace(/[^a-z0-9]+/g, ' ').trim();
+    if (cleanSlug) {
+      // 6a. Exact match on title (trimmed, lowercased)
+      product = await db.getAsync(
+        'SELECT * FROM products WHERE LOWER(TRIM(title)) = ?',
+        [cleanSlug]
+      );
+      if (product) return res.json(parseProduct(product));
+
+      // 6b. Best match among candidates
+      const allCandidates = await db.allAsync(
+        'SELECT * FROM products WHERE LOWER(title) LIKE ?',
+        [`%${cleanSlug}%`]
+      );
+      if (allCandidates.length > 0) {
+        allCandidates.sort((a, b) => {
+          const aNorm = (a.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+          const bNorm = (b.title || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+          const aExact = aNorm === cleanSlug ? 0 : Math.abs(aNorm.length - cleanSlug.length);
+          const bExact = bNorm === cleanSlug ? 0 : Math.abs(bNorm.length - cleanSlug.length);
+          return aExact - bExact;
+        });
+        product = allCandidates[0];
+        if (product) return res.json(parseProduct(product));
+      }
+    }
+
+    // 7. Word-based ranking fallback (if multiple words exist)
+    if (!product && cleanSlug) {
+      const words = cleanSlug.split(' ').filter(w => w.length >= 3);
+      if (words.length > 1) {
+        const rows = await db.allAsync(
+          `SELECT * FROM products WHERE ${words.map(() => 'LOWER(title) LIKE ?').join(' OR ')}`,
+          words.map(w => `%${w}%`)
+        );
+        if (rows.length > 0) {
+          rows.sort((a, b) => {
+            const aTitle = (a.title || '').toLowerCase();
+            const bTitle = (b.title || '').toLowerCase();
+            const aScore = words.reduce((acc, w) => acc + (aTitle.includes(w) ? 1 : 0), 0);
+            const bScore = words.reduce((acc, w) => acc + (bTitle.includes(w) ? 1 : 0), 0);
+            return bScore - aScore;
+          });
+          product = rows[0];
+        }
+      }
     }
 
     if (!product) return res.status(404).json({ error: 'Product not found' });

@@ -144,8 +144,11 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
         if (product) {
           const code = CITY_TO_CODE[city.toLowerCase()] || city.toLowerCase().slice(0, 3);
           const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
-          const citySlugPart = city.toLowerCase().replace(/\s+/g, '-');
-          navigateTo(`/${code}/${baseSlug}-in-${citySlugPart}`);
+          if (product.custom_slug) {
+            navigateTo(`/${code}/${product.custom_slug}-in-${citySlugPart}`);
+          } else {
+            navigateTo(`/${code}/${product.id}-${baseSlug}-in-${citySlugPart}`);
+          }
           return;
         }
       } else {
