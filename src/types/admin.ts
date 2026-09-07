@@ -1,3 +1,28 @@
+export interface ProductShowcaseSection {
+  id?: string;
+  image: string;
+  imageAlt?: string;
+  tag?: string;
+  title: string;
+  description: string;
+  bullets?: string[];
+  layout?: 'image-left' | 'image-right';
+}
+
+export interface WhyChooseUsItem {
+  icon?: string;
+  title: string;
+  description: string;
+}
+
+export interface WhyChooseUsConfig {
+  tag?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  items?: WhyChooseUsItem[];
+}
+
 export interface AdminProduct {
   id: number;
   title: string;
@@ -7,7 +32,14 @@ export interface AdminProduct {
   images: string | string[];
   category: string;
   colors: string | string[];
-  variants?: string | Array<{ color: string; stock: number }>;
+  variants?: string | Array<{ color: string; stock: number }> | Variant[];
+  variant_types?: string | VariantType[];
+  city_descriptions?: string | Record<string, string>;
+  showcase_sections?: string | ProductShowcaseSection[];
+  city_showcase_sections?: string | Record<string, ProductShowcaseSection[]>;
+  why_choose_us?: string | Record<string, WhyChooseUsConfig> | WhyChooseUsConfig;
+  custom_slug?: string;
+  city_slugs?: string | Record<string, string>;
   material?: string;
   stock: number;
   featured: boolean;

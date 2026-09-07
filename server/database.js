@@ -109,6 +109,16 @@ function initPgDb() {
       -- Legacy columns, to be phased out
       colors TEXT DEFAULT '[]',
       
+      -- City specific SEO descriptions
+      city_descriptions TEXT DEFAULT '{}',
+      
+      -- Dynamic Image & Content Showcase Sections
+      showcase_sections TEXT DEFAULT '[]',
+      city_showcase_sections TEXT DEFAULT '{}',
+      
+      -- Dynamic Why Choose Us Section
+      why_choose_us TEXT DEFAULT '{}',
+      
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -227,6 +237,12 @@ function initPgDb() {
       const alterProducts = `
         ALTER TABLE products ADD COLUMN IF NOT EXISTS variants TEXT DEFAULT '[]';
         ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_types TEXT DEFAULT '[]';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS city_descriptions TEXT DEFAULT '{}';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS showcase_sections TEXT DEFAULT '[]';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS city_showcase_sections TEXT DEFAULT '{}';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS why_choose_us TEXT DEFAULT '{}';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS custom_slug TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS city_slugs TEXT DEFAULT '{}';
       `;
       return db.query(alterProducts);
     })
@@ -318,6 +334,16 @@ function initSqliteDb() {
       -- Legacy
       colors TEXT DEFAULT '[]',
 
+      -- City specific SEO descriptions
+      city_descriptions TEXT DEFAULT '{}',
+
+      -- Dynamic Showcase Sections
+      showcase_sections TEXT DEFAULT '[]',
+      city_showcase_sections TEXT DEFAULT '{}',
+
+      -- Dynamic Why Choose Us
+      why_choose_us TEXT DEFAULT '{}',
+
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`, (err) => {
@@ -330,6 +356,24 @@ function initSqliteDb() {
             }
             if (!cols.some(c => c.name === 'variant_types')) {
               db.run("ALTER TABLE products ADD COLUMN variant_types TEXT DEFAULT '[]'");
+            }
+            if (!cols.some(c => c.name === 'city_descriptions')) {
+              db.run("ALTER TABLE products ADD COLUMN city_descriptions TEXT DEFAULT '{}'");
+            }
+            if (!cols.some(c => c.name === 'showcase_sections')) {
+              db.run("ALTER TABLE products ADD COLUMN showcase_sections TEXT DEFAULT '[]'");
+            }
+            if (!cols.some(c => c.name === 'city_showcase_sections')) {
+              db.run("ALTER TABLE products ADD COLUMN city_showcase_sections TEXT DEFAULT '{}'");
+            }
+            if (!cols.some(c => c.name === 'why_choose_us')) {
+              db.run("ALTER TABLE products ADD COLUMN why_choose_us TEXT DEFAULT '{}'");
+            }
+            if (!cols.some(c => c.name === 'custom_slug')) {
+              db.run("ALTER TABLE products ADD COLUMN custom_slug TEXT");
+            }
+            if (!cols.some(c => c.name === 'city_slugs')) {
+              db.run("ALTER TABLE products ADD COLUMN city_slugs TEXT DEFAULT '{}'");
             }
           }
         });
@@ -531,10 +575,10 @@ function ensureSqliteColumns(tableName, columns) {
   });
 }
 
-// Seed default admin user (admin / nivara@admin123)
+// Seed default admin user (admin@9606 / nivara@admin123)
 function seedAdminUser() {
   const bcrypt = require('bcryptjs');
-  const defaultUsername = process.env.ADMIN_USERNAME || 'admin';
+  const defaultUsername = process.env.ADMIN_USERNAME || 'admin@9606';
   const defaultPassword = process.env.ADMIN_PASSWORD || 'nivara@admin123';
   
   dbWrapper.get('SELECT id FROM admin_users WHERE username = ?', [defaultUsername], (err, row) => {

@@ -119,9 +119,106 @@ app.use('/api/blogs', blogsRoutes);
 app.use('/api/hero-slides', heroSlidesRoutes);
 app.use('/api/payments', paymentRoutes);
 
-// Health Check
-app.get('/', (req, res) => {
-  res.send('Nivaran Auth Server is running.');
+// Dynamic Sitemap endpoint
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const db = require('./database');
+    const baseUrl = 'https://nivaranupcyclers.com';
+    const currentDate = new Date().toISOString().split('T')[0];
+
+    // Fetch dynamic products and blogs from DB if available
+    let products = [];
+    let blogs = [];
+    try {
+      products = await new Promise((resolve) => {
+        db.all('SELECT id, title, custom_slug, city_slugs FROM products', [], (err, rows) => resolve(rows || []));
+      });
+      blogs = await new Promise((resolve) => {
+        db.all('SELECT blog_handle, article_handle FROM blogs', [], (err, rows) => resolve(rows || []));
+      });
+    } catch (e) {
+      // Fallback if table not ready
+    }
+
+    const staticRoutes = [
+      { url: '/', priority: '1.0', changefreq: 'daily' },
+      { url: '/products', priority: '0.9', changefreq: 'daily' },
+      { url: '/cart', priority: '0.7', changefreq: 'weekly' },
+      { url: '/privacy', priority: '0.5', changefreq: 'monthly' },
+      { url: '/terms', priority: '0.5', changefreq: 'monthly' },
+      { url: '/shipping', priority: '0.5', changefreq: 'monthly' },
+    ];
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // Add static routes
+    staticRoutes.forEach(r => {
+      xml += `  <url>\n    <loc>${baseUrl}${r.url}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>${r.changefreq}</changefreq>\n    <priority>${r.priority}</priority>\n  </url>\n`;
+    });
+
+    const targetCities = [
+      { code: 'kn', name: 'kanpur', label: 'Kanpur' },
+      { code: 'del', name: 'delhi', label: 'Delhi NCR' },
+      { code: 'mum', name: 'mumbai', label: 'Mumbai' },
+      { code: 'blr', name: 'bangalore', label: 'Bangalore' },
+      { code: 'hyd', name: 'hyderabad', label: 'Hyderabad' },
+      { code: 'pune', name: 'pune', label: 'Pune' },
+      { code: 'lko', name: 'lucknow', label: 'Lucknow' }
+    ];
+
+    // Add product routes & city SEO routes
+    if (products.length > 0) {
+      products.forEach(p => {
+        let citySlugsMap = {};
+        try {
+          citySlugsMap = typeof p.city_slugs === 'string' ? JSON.parse(p.city_slugs || '{}') : (p.city_slugs || {});
+        } catch {}
+
+        const baseSlug = (p.custom_slug || (p.title ? p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : `product-${p.id}`)).replace(/-+$/, '');
+        xml += `  <url>\n    <loc>${baseUrl}/product/${p.id}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        
+        targetCities.forEach(city => {
+          const effectiveSlug = citySlugsMap[city.label] || citySlugsMap[city.name] || `${baseSlug}-in-${city.name}`;
+          xml += `  <url>\n    <loc>${baseUrl}/${city.code}/${effectiveSlug}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        });
+      });
+    } else {
+      // Default product IDs & city slugs
+      const defaultProducts = [
+        { id: 'p1', slug: 'organic-cotton-tote-bag' },
+        { id: 'p2', slug: 'handmade-jute-rug' },
+        { id: 'p3', slug: 'bamboo-cutting-board' },
+        { id: 'p4', slug: 'recycled-glass-bottle-set' },
+        { id: 'p5', slug: 'upcycled-denim-pouch' },
+        { id: 'p6', slug: 'coconut-shell-bowl' },
+        { id: 'p7', slug: 'reclaimed-wood-clock' },
+        { id: 'p8', slug: 'newspaper-weave-coasters' },
+        { id: 'p9', slug: 'tire-tube-wallet' },
+      ];
+
+      defaultProducts.forEach(p => {
+        xml += `  <url>\n    <loc>${baseUrl}/product/${p.id}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        targetCities.forEach(city => {
+          xml += `  <url>\n    <loc>${baseUrl}/${city.code}/${p.slug}-in-${city.name}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+        });
+      });
+    }
+
+    // Add blog routes
+    blogs.forEach(b => {
+      if (b.blog_handle && b.article_handle) {
+        xml += `  <url>\n    <loc>${baseUrl}/blogs/${b.blog_handle}/${b.article_handle}</loc>\n    <lastmod>${currentDate}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+      }
+    });
+
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('Sitemap generation error:', err);
+    res.status(500).send('Error generating sitemap');
+  }
 });
 
 // Diagnostic endpoint for debugging admin login issues

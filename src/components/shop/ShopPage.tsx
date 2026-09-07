@@ -19,9 +19,39 @@ interface Product {
   material: string
   stock: number
   featured: number
+  custom_slug?: string
   description?: string
   createdAt?: string
   created_at?: string
+}
+
+const CITY_TO_CODE: Record<string, string> = {
+  'kanpur': 'kn',
+  'mumbai': 'mum',
+  'delhi ncr': 'del',
+  'delhi': 'del',
+  'bangalore': 'blr',
+  'hyderabad': 'hyd',
+  'pune': 'pune',
+  'lucknow': 'lko',
+  'kolkata': 'kol',
+  'jaipur': 'jai',
+  'chennai': 'chn',
+  'ahmedabad': 'ahd',
+  'varanasi': 'var',
+};
+
+function getProductDetailUrl(p: Product) {
+  try {
+    const prefCity = localStorage.getItem('preferred_city');
+    if (prefCity) {
+      const code = CITY_TO_CODE[prefCity.toLowerCase()] || 'kn';
+      const baseSlug = (p.custom_slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
+      const citySlugPart = prefCity.toLowerCase().replace(/\s+/g, '-');
+      return `/${code}/${baseSlug}-in-${citySlugPart}`;
+    }
+  } catch {}
+  return `/product/${p.id}`;
 }
 
 export default function ShopPage() {
@@ -267,7 +297,7 @@ export default function ShopPage() {
                 {filtered.map((p, index) => (
                   <div key={p.id} className="product-card" style={{ animationDelay: `${index * 40}ms` }}>
                     <div
-                      onClick={() => navigateTo(`/product/${p.id}`)}
+                      onClick={() => navigateTo(getProductDetailUrl(p))}
                       className="product-media"
                     >
                       <img
@@ -304,7 +334,7 @@ export default function ShopPage() {
                           {addedIds.has(String(p.id)) ? 'Added' : 'Add to Cart'}
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); navigateTo(`/product/${p.id}`); }}
+                          onClick={(e) => { e.stopPropagation(); navigateTo(getProductDetailUrl(p)); }}
                           className="btn-secondary"
                         >
                           View Details

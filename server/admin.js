@@ -20,7 +20,27 @@ function parseProduct(p) {
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
     variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
     variant_types: typeof p.variant_types === 'string' ? JSON.parse(p.variant_types || '[]') : (p.variant_types || []),
+    city_descriptions: typeof p.city_descriptions === 'string' ? JSON.parse(p.city_descriptions || '{}') : (p.city_descriptions || {}),
+    showcase_sections: typeof p.showcase_sections === 'string' ? JSON.parse(p.showcase_sections || '[]') : (p.showcase_sections || []),
+    city_showcase_sections: typeof p.city_showcase_sections === 'string' ? JSON.parse(p.city_showcase_sections || '{}') : (p.city_showcase_sections || {}),
+    why_choose_us: typeof p.why_choose_us === 'string' ? JSON.parse(p.why_choose_us || '{}') : (p.why_choose_us || {}),
+    custom_slug: p.custom_slug || '',
+    city_slugs: typeof p.city_slugs === 'string' ? JSON.parse(p.city_slugs || '{}') : (p.city_slugs || {}),
   };
+}
+
+// Helper: safe JSON parsing for objects from req.body
+function safeParseJsonObject(input) {
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) return input;
+  if (typeof input === 'string') {
+    try {
+      const parsed = JSON.parse(input);
+      return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
 }
 
 // Helper: safe JSON parsing for arrays from req.body (handles strings or raw arrays)
@@ -99,7 +119,7 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const valid = bcrypt.compareSync(password, admin.password_hash);
+    const valid = await bcrypt.compare(password, admin.password_hash);
     if (!valid) {
       console.error(`Admin login failed: Invalid password for user "${username}"`);
       return res.status(401).json({ 
@@ -181,7 +201,7 @@ router.get('/products', requireAdmin, async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
     const selectCols = withImages
       ? '*'
-      : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, created_at, updated_at';
+      : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, created_at, updated_at';
 
     const rows = await db.allAsync(`SELECT ${selectCols} FROM products ORDER BY created_at DESC`);
     res.json({ products: rows.map(parseProduct) });
@@ -205,7 +225,8 @@ router.get('/products/:id', requireAdmin, async (req, res) => {
 router.post('/products', requireAdmin, async (req, res) => {
   const { 
     title, description, price, compare_at_price, images, category, 
-    material, stock, featured, variants, variant_types 
+    material, stock, featured, variants, variant_types, city_descriptions,
+    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs
   } = req.body;
 
   if (!title || !price) return res.status(400).json({ error: 'Title and price are required' });
@@ -214,10 +235,16 @@ router.post('/products', requireAdmin, async (req, res) => {
     const imagesJson = JSON.stringify(safeParseJsonArray(images));
     const variantsJson = JSON.stringify(safeParseJsonArray(variants));
     const variantTypesJson = JSON.stringify(safeParseJsonArray(variant_types));
+    const cityDescriptionsJson = JSON.stringify(safeParseJsonObject(city_descriptions));
+    const showcaseSectionsJson = JSON.stringify(safeParseJsonArray(showcase_sections));
+    const cityShowcaseSectionsJson = JSON.stringify(safeParseJsonObject(city_showcase_sections));
+    const whyChooseUsJson = JSON.stringify(safeParseJsonObject(why_choose_us));
+    const citySlugsJson = JSON.stringify(safeParseJsonObject(city_slugs));
+    const formattedSlug = (custom_slug || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
 
     const sql = `INSERT INTO products 
-      (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const params = [
       title, description || '',
       parseFloat(price),
@@ -227,13 +254,19 @@ router.post('/products', requireAdmin, async (req, res) => {
       parseInt(stock) || 0,
       featured ? 1 : 0,
       variantsJson,
-      variantTypesJson
+      variantTypesJson,
+      cityDescriptionsJson,
+      showcaseSectionsJson,
+      cityShowcaseSectionsJson,
+      whyChooseUsJson,
+      formattedSlug,
+      citySlugsJson
     ];
 
     if (process.env.DATABASE_URL) {
       const pgSql = `INSERT INTO products 
-        (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`;
+        (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`;
       
       try {
         const result = await db.getAsync(pgSql, params);
@@ -264,7 +297,8 @@ router.post('/products', requireAdmin, async (req, res) => {
 router.put('/products/:id', requireAdmin, async (req, res) => {
   const { 
     title, description, price, compare_at_price, images, category, 
-    material, stock, featured, variants, variant_types 
+    material, stock, featured, variants, variant_types, city_descriptions,
+    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs
   } = req.body;
   const { id } = req.params;
 
@@ -272,6 +306,12 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
     const imagesJson = JSON.stringify(safeParseJsonArray(images));
     const variantsJson = JSON.stringify(safeParseJsonArray(variants));
     const variantTypesJson = JSON.stringify(safeParseJsonArray(variant_types));
+    const cityDescriptionsJson = JSON.stringify(safeParseJsonObject(city_descriptions));
+    const showcaseSectionsJson = JSON.stringify(safeParseJsonArray(showcase_sections));
+    const cityShowcaseSectionsJson = JSON.stringify(safeParseJsonObject(city_showcase_sections));
+    const whyChooseUsJson = JSON.stringify(safeParseJsonObject(why_choose_us));
+    const citySlugsJson = JSON.stringify(safeParseJsonObject(city_slugs));
+    const formattedSlug = (custom_slug || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
 
     const params = [
       title, description || '',
@@ -283,6 +323,12 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       featured ? 1 : 0,
       variantsJson,
       variantTypesJson,
+      cityDescriptionsJson,
+      showcaseSectionsJson,
+      cityShowcaseSectionsJson,
+      whyChooseUsJson,
+      formattedSlug,
+      citySlugsJson,
       id
     ];
 
@@ -290,9 +336,10 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       // PostgreSQL uses $1, $2, ... placeholders
       const pgSql = `UPDATE products SET 
         title=$1, description=$2, price=$3, compare_at_price=$4, images=$5, 
-        category=$6, material=$7, stock=$8, featured=$9, variants=$10, variant_types=$11, 
+        category=$6, material=$7, stock=$8, featured=$9, variants=$10, variant_types=$11, city_descriptions=$12, 
+        showcase_sections=$13, city_showcase_sections=$14, why_choose_us=$15, custom_slug=$16, city_slugs=$17,
         updated_at=CURRENT_TIMESTAMP
-        WHERE id=$12 RETURNING id, title, price, category, stock, featured, created_at, updated_at`;
+        WHERE id=$18 RETURNING id, title, price, category, stock, featured, created_at, updated_at`;
       try {
         const result = await db.getAsync(pgSql, params);
         const parsed = parseProduct(result);
@@ -306,7 +353,8 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       // SQLite uses ? placeholders
       const sql = `UPDATE products SET 
         title=?, description=?, price=?, compare_at_price=?, images=?, 
-        category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, 
+        category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, city_descriptions=?, 
+        showcase_sections=?, city_showcase_sections=?, why_choose_us=?, custom_slug=?, city_slugs=?,
         updated_at=CURRENT_TIMESTAMP
         WHERE id=?`;
       db.run(sql, params, async function(err) {

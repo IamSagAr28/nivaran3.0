@@ -292,15 +292,16 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
               <div className="form-group">
                 <label>Image URL</label>
                 <input
-                  value={form.image_url}
+                  value={form.image_url && form.image_url.startsWith('data:') ? 'Embedded Image File (Base64)' : form.image_url || ''}
                   onChange={(e) => setForm((p) => ({ ...p, image_url: e.target.value }))}
+                  disabled={form.image_url ? form.image_url.startsWith('data:') : false}
                   placeholder="Paste URL or upload image file below"
                 />
               </div>
               <div className="form-group">
                 <label>Image Alt</label>
                 <input
-                  value={form.image_alt}
+                  value={form.image_alt || ''}
                   onChange={(e) => setForm((p) => ({ ...p, image_alt: e.target.value }))}
                 />
               </div>
@@ -347,12 +348,12 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
                     </button>
                   )}
                 </div>
-                {form.image_url && form.image_url.startsWith('data:') && (
+                {form.image_url && (
                   <div style={{ marginTop: 8 }}>
-                    <p style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>Uploaded Image Preview:</p>
+                    <p style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>Image Preview:</p>
                     <img
                       src={form.image_url}
-                      alt="Uploaded Preview"
+                      alt="Blog Preview"
                       style={{ maxWidth: 150, maxHeight: 100, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }}
                     />
                   </div>

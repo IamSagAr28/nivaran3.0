@@ -17,6 +17,12 @@ function parseProduct(p) {
     colors: typeof p.colors === 'string' ? JSON.parse(p.colors || '[]') : (p.colors || []),
     variants: typeof p.variants === 'string' ? JSON.parse(p.variants || '[]') : (p.variants || []),
     variant_types: typeof p.variant_types === 'string' ? JSON.parse(p.variant_types || '[]') : (p.variant_types || []),
+    city_descriptions: typeof p.city_descriptions === 'string' ? JSON.parse(p.city_descriptions || '{}') : (p.city_descriptions || {}),
+    showcase_sections: typeof p.showcase_sections === 'string' ? JSON.parse(p.showcase_sections || '[]') : (p.showcase_sections || []),
+    city_showcase_sections: typeof p.city_showcase_sections === 'string' ? JSON.parse(p.city_showcase_sections || '{}') : (p.city_showcase_sections || {}),
+    why_choose_us: typeof p.why_choose_us === 'string' ? JSON.parse(p.why_choose_us || '{}') : (p.why_choose_us || {}),
+    custom_slug: p.custom_slug || '',
+    city_slugs: typeof p.city_slugs === 'string' ? JSON.parse(p.city_slugs || '{}') : (p.city_slugs || {}),
   };
 }
 
@@ -27,7 +33,7 @@ router.get('/', async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
       const selectCols = withImages
         ? '*'
-        : 'id, title, description, price, compare_at_price, category, colors, variants, variant_types, material, stock, featured, created_at, updated_at';
+        : 'id, title, description, price, compare_at_price, category, colors, variants, variant_types, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, created_at, updated_at';
 
     let sql = `SELECT ${selectCols} FROM products WHERE 1=1`;
     const params = [];
@@ -131,13 +137,59 @@ router.get('/:id/media/:index', async (req, res) => {
   }
 });
 
-// GET /api/products/:id — single product (public)
+// GET /api/products/:id — single product (public by ID, custom_slug, or title slug)
 router.get('/:id', async (req, res) => {
   try {
-    const product = await db.getAsync('SELECT * FROM products WHERE id = ?', [req.params.id]);
+    const param = String(req.params.id || '').trim();
+    let product = null;
+
+    // 1. If numeric ID
+    if (/^\d+$/.test(param)) {
+      product = await db.getAsync('SELECT * FROM products WHERE id = ?', [param]);
+    }
+
+    // 2. Lookup by exact custom_slug or city_slugs JSON
+    if (!product && param) {
+      product = await db.getAsync('SELECT * FROM products WHERE custom_slug = ? OR city_slugs LIKE ?', [param.toLowerCase(), `%"${param.toLowerCase()}"%`]);
+    }
+
+    // 3. If param contains city suffix (e.g. "jute-bags-in-kanpur"), strip "-in-..." and match custom_slug or city_slugs
+    if (!product && param) {
+      const stripped = param.toLowerCase().replace(/-in-[a-z0-9-]+$/, '');
+      if (stripped && stripped !== param) {
+        product = await db.getAsync('SELECT * FROM products WHERE custom_slug = ? OR city_slugs LIKE ?', [stripped, `%"${stripped}"%`]);
+      }
+    }
+
+    // 4. Match against product title
+    if (!product && param) {
+      const cleanSlug = param.toLowerCase().replace(/-in-[a-z0-9-]+$/, '').replace(/[^a-z0-9]+/g, ' ').trim();
+      if (cleanSlug) {
+        product = await db.getAsync(
+          'SELECT * FROM products WHERE LOWER(title) LIKE ? OR LOWER(custom_slug) LIKE ?',
+          [`%${cleanSlug}%`, `%${cleanSlug}%`]
+        );
+      }
+    }
+
+    // 5. Fallback: match by first word
+    if (!product && param) {
+      const firstWord = param.split('-')[0].toLowerCase().trim();
+      if (firstWord.length >= 3) {
+        product = await db.getAsync('SELECT * FROM products WHERE LOWER(title) LIKE ?', [`%${firstWord}%`]);
+      }
+    }
+
+    // 6. Final fallback: match by legacy mock IDs (p1, p2...)
+    if (!product && /^p\d+$/i.test(param)) {
+      const numericId = param.replace(/^p/i, '');
+      product = await db.getAsync('SELECT * FROM products WHERE id = ?', [numericId]);
+    }
+
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(parseProduct(product));
   } catch (err) {
+    console.error('GET /api/products/:id error:', err);
     res.status(500).json({ error: 'Failed to fetch product' });
   }
 });

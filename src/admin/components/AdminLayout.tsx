@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Menu, X } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
 
 interface AdminLayoutProps {
@@ -17,7 +18,25 @@ export function AdminLayout({ children, onLogout, currentPage }: AdminLayoutProp
     const token = localStorage.getItem('adminToken');
     if (!token) {
       window.location.href = '/admin-login';
+      return;
     }
+
+    // Verify token validity on backend to handle expiration or invalid sessions
+    fetch(apiUrl('/api/admin/me'), {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include'
+    })
+      .then(res => {
+        if (!res.ok) {
+          // Token is expired or invalid
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminSession');
+          window.location.href = '/admin-login?error=session_expired';
+        }
+      })
+      .catch(() => {
+        // Network error, ignore or handle
+      });
   }, []);
 
   return (

@@ -59,7 +59,6 @@ export default function App() {
             <Route path="/product/:id" component={ProductDetailPage} />
             <Route path="/blogs/:blogHandle/:articleHandle" component={BlogPostPage} />
             <Route path="/cart" component={ShopCartPage} />
-            <Route path="/shop-cart" component={ShopCartPage} />
             <Route path="/profile" component={ProfilePage} />
             <Route path="/privacy" component={PrivacyPage} />
             <Route path="/terms" component={TermsPage} />
@@ -103,6 +102,9 @@ export default function App() {
                path="/admin/newsletter"
                component={() => <NewsletterAdmin onLogout={handleAdminLogout} />}
              />
+
+            {/* City SEO Programmatic Landing Routes (e.g. /kn/jute-bags-in-kanpur) */}
+            <Route path="/:cityCode/:slug" component={ProductDetailPage} />
           </Router>
           </Suspense>
         </ShopCartProvider>

@@ -40,7 +40,7 @@ export const Router = ({ children, fallback = null }) => {
 
   let params = {};
 
-  const matchedChild = childArray.find(child => {
+  let matchedChild = childArray.find(child => {
     if (!React.isValidElement(child)) return false;
 
     const { path } = child.props;
@@ -55,11 +55,22 @@ export const Router = ({ children, fallback = null }) => {
 
     // Direct match
     if (normalizedPath === normalizedCurrentPath) return true;
+    return false;
+  });
 
-    // Parameter match (e.g. /blogs/:handle)
-    if (path.includes(':')) {
+  // 2. If no exact match found, search parameterized routes (e.g. /:cityCode/:slug or /product/:id)
+  if (!matchedChild) {
+    matchedChild = childArray.find(child => {
+      if (!React.isValidElement(child)) return false;
+      const { path } = child.props;
+      if (typeof path !== 'string' || !path.includes(':')) return false;
+
+      const p = path.trim();
+      const normalizedPath = (p === '/' ? p : p.replace(/\/$/, '')).toLowerCase();
+      const cp = (currentPath || '').trim();
+      const normalizedCurrentPath = (cp === '/' ? cp : cp.replace(/\/$/, '')).toLowerCase();
+
       const keys = [];
-      // Extract keys from original path to preserve case (e.g. blogHandle)
       path.replace(/:([^\/]+)/g, (_, key) => {
         keys.push(key);
         return '';
@@ -68,7 +79,6 @@ export const Router = ({ children, fallback = null }) => {
       const regexStr = normalizedPath.replace(/:([^\/]+)/g, () => {
         return '([^/]+)';
       });
-      // Anchored strictly, case-insensitive regex
       const regex = new RegExp(`^${regexStr}$`, 'i');
       const match = cp.replace(/\/$/, '').match(regex);
 
@@ -78,10 +88,9 @@ export const Router = ({ children, fallback = null }) => {
         });
         return true;
       }
-    }
-
-    return false;
-  });
+      return false;
+    });
+  }
 
   if (matchedChild) {
     const { component: Component } = matchedChild.props;

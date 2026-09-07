@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { useRouter } from '../../utils/Router';
 import { apiUrl } from '../../utils/shopApi';
@@ -11,6 +11,13 @@ export function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'session_expired') {
+      setError('Your session has expired. Please log in again.');
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +110,7 @@ export function AdminLogin() {
 
         <div className="admin-login-footer">
           <p>Default credentials:</p>
-          <p><strong>Username:</strong> admin</p>
+          <p><strong>Username:</strong> admin@9606</p>
           <p><strong>Password:</strong> nivara@admin123</p>
         </div>
       </div>
