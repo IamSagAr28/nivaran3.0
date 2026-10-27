@@ -2,10 +2,34 @@ import { useState, useEffect } from 'react';
 import { useRouter } from '../utils/Router';
 import { fetchHeroSlides } from '../utils/shopApi';
 
+function resolveSlideImage(url) {
+  if (!url || typeof url !== 'string') return '/images/hero/hero1.jpg';
+  const cleanUrl = url.trim();
+  if (cleanUrl.includes('e2TGAfbOl1tRiOtFNU9f')) {
+    return '/images/hero/hero-banner-upcycled.jpg';
+  }
+  if (cleanUrl.includes('9iRkCVkVoAPeo6L6uKtg')) {
+    return '/images/hero/hero-founder-process.png';
+  }
+  if (cleanUrl.includes('kommodo.ai/i/')) {
+    return '/images/hero/hero-banner-upcycled.jpg';
+  }
+  return cleanUrl;
+}
+
 export function HeroSlideshow() {
   const [currentSlide, setCurrentSlide] = useState(0);
 
   const defaultSlides = [
+    {
+      image: "/images/hero/hero-banner-upcycled.jpg",
+      tag: "",
+      title: "",
+      highlight: "",
+      description: "",
+      primaryCTA: "Shop Now",
+      secondaryCTA: "Learn More"
+    },
     {
       image: "/images/hero/hero1.jpg",
       tag: "Sustainable Living Made Beautiful",
@@ -69,7 +93,7 @@ export function HeroSlideshow() {
       .then((data) => {
         if (Array.isArray(data.slides) && data.slides.length > 0) {
           setSlides(data.slides.map((s) => ({
-            image: s.image,
+            image: resolveSlideImage(s.image),
             tag: s.tag || '',
             title: s.title || '',
             highlight: s.highlight || '',
@@ -144,11 +168,16 @@ export function HeroSlideshow() {
   };
 
   const currentSlideData = slides[currentSlide];
+  const hasTextContent = Boolean(
+    (currentSlideData?.tag && currentSlideData.tag.trim()) ||
+    (currentSlideData?.title && currentSlideData.title.trim()) ||
+    (currentSlideData?.highlight && currentSlideData.highlight.trim()) ||
+    (currentSlideData?.description && currentSlideData.description.trim())
+  );
 
   return (
-    <section style={{
+    <section className="hero-slideshow-container" style={{
       width: '100%',
-      height: '1010px',
       position: 'relative',
       overflow: 'hidden'
     }}>
@@ -180,8 +209,11 @@ export function HeroSlideshow() {
         left: 0,
         width: '100%',
         height: '100%',
-        background: 'linear-gradient(to right, rgba(42, 42, 42, 0.4), rgba(42, 42, 42, 0.5))',
-        zIndex: 1
+        background: hasTextContent
+          ? 'linear-gradient(to right, rgba(42, 42, 42, 0.55), rgba(42, 42, 42, 0.4))'
+          : 'linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.05) 50%, rgba(0, 0, 0, 0.1) 100%)',
+        zIndex: 1,
+        pointerEvents: 'none'
       }} />
 
       {/* Content */}
@@ -192,68 +224,73 @@ export function HeroSlideshow() {
         width: '100%',
         height: '100%',
         display: 'flex',
-        alignItems: 'center',
+        alignItems: hasTextContent ? 'center' : 'flex-end',
+        paddingBottom: hasTextContent ? '0' : '64px',
         zIndex: 2
       }}>
         <div style={{
           maxWidth: '1200px',
           margin: '0 auto',
-          padding: '0 16px',
+          padding: '0 24px',
           width: '100%'
         }}>
           <div style={{ maxWidth: '672px' }}>
             {/* Tag */}
-            <div
-              key={`tag-${currentSlide}`}
-              style={{
-                display: 'inline-block',
-                padding: '8px 16px',
-                backgroundColor: '#F8D548',
-                color: '#2A2A2A',
-                borderRadius: '9999px',
-                fontSize: '14px',
-                marginBottom: '24px',
-                opacity: 0,
-                transform: 'translateY(20px)',
-                animation: 'fadeInUp 0.6s ease-out 0s forwards'
-              }}
-            >
-              {currentSlideData.tag}
-            </div>
+            {currentSlideData?.tag?.trim() ? (
+              <div
+                key={`tag-${currentSlide}`}
+                style={{
+                  display: 'inline-block',
+                  padding: '6px 14px',
+                  backgroundColor: '#F8D548',
+                  color: '#2A2A2A',
+                  borderRadius: '9999px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  marginBottom: '16px',
+                  opacity: 0,
+                  transform: 'translateY(20px)',
+                  animation: 'fadeInUp 0.6s ease-out 0s forwards'
+                }}
+              >
+                {currentSlideData.tag}
+              </div>
+            ) : null}
 
             {/* Title */}
-            <h1
-              key={`title-${currentSlide}`}
-              style={{
-                fontSize: '48px',
-                lineHeight: '1.2',
-                fontWeight: '600',
-                margin: '0 0 24px 0',
-                color: 'white',
-                opacity: 0,
-                transform: 'translateY(20px)',
-                animation: 'fadeInUp 0.6s ease-out 0.1s forwards'
-              }}
-            >
-              {currentSlideData.title}{' '}
-              <span style={{ color: '#F8D548' }}>{currentSlideData.highlight}</span>
-            </h1>
+            {(currentSlideData?.title?.trim() || currentSlideData?.highlight?.trim()) ? (
+              <h1
+                key={`title-${currentSlide}`}
+                className="hero-title"
+                style={{
+                  fontWeight: '700',
+                  margin: '0 0 16px 0',
+                  color: 'white',
+                  opacity: 0,
+                  transform: 'translateY(20px)',
+                  animation: 'fadeInUp 0.6s ease-out 0.1s forwards'
+                }}
+              >
+                {currentSlideData.title}{' '}
+                <span style={{ color: '#F8D548' }}>{currentSlideData.highlight}</span>
+              </h1>
+            ) : null}
 
             {/* Description */}
-            <p
-              key={`desc-${currentSlide}`}
-              style={{
-                fontSize: '18px',
-                color: '#FFF6D1',
-                marginBottom: '32px',
-                lineHeight: '1.6',
-                opacity: 0,
-                transform: 'translateY(20px)',
-                animation: 'fadeInUp 0.6s ease-out 0.2s forwards'
-              }}
-            >
-              {currentSlideData.description}
-            </p>
+            {currentSlideData?.description?.trim() ? (
+              <p
+                key={`desc-${currentSlide}`}
+                className="hero-description"
+                style={{
+                  color: '#FFF6D1',
+                  opacity: 0,
+                  transform: 'translateY(20px)',
+                  animation: 'fadeInUp 0.6s ease-out 0.2s forwards'
+                }}
+              >
+                {currentSlideData.description}
+              </p>
+            ) : null}
 
             {/* Buttons */}
             <div
@@ -275,7 +312,7 @@ export function HeroSlideshow() {
                 borderRadius: '8px',
                 fontSize: '16px',
                 cursor: 'pointer',
-                fontWeight: '500',
+                fontWeight: '600',
                 transition: 'all 0.3s ease',
                 boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
               }}
@@ -290,30 +327,33 @@ export function HeroSlideshow() {
                   e.target.style.color = '#2A2A2A';
                   e.target.style.transform = 'scale(1)';
                 }}>
-                {currentSlideData.primaryCTA}
+                {currentSlideData?.primaryCTA || 'Shop Now'}
               </button>
-              <button style={{
-                padding: '12px 32px',
-                backgroundColor: 'transparent',
-                color: 'white',
-                border: '2px solid white',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer',
-                fontWeight: '500',
-                transition: 'all 0.3s ease'
-              }}
-                onClick={() => handleSecondaryCTA(currentSlide)}
-                onMouseOver={(e) => {
-                  e.target.style.backgroundColor = 'white';
-                  e.target.style.color = '#DBB520';
+              {currentSlideData?.secondaryCTA?.trim() ? (
+                <button style={{
+                  padding: '12px 32px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: 'blur(4px)',
+                  color: 'white',
+                  border: '2px solid white',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease'
                 }}
-                onMouseOut={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = 'white';
-                }}>
-                {currentSlideData.secondaryCTA}
-              </button>
+                  onClick={() => handleSecondaryCTA(currentSlide)}
+                  onMouseOver={(e) => {
+                    e.target.style.backgroundColor = 'white';
+                    e.target.style.color = '#DBB520';
+                  }}
+                  onMouseOut={(e) => {
+                    e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                    e.target.style.color = 'white';
+                  }}>
+                  {currentSlideData.secondaryCTA}
+                </button>
+              ) : null}
             </div>
           </div>
         </div>
@@ -425,8 +465,47 @@ export function HeroSlideshow() {
         ))}
       </div>
 
-      {/* CSS Animations */}
+      {/* CSS Animations & Responsive Rules */}
       <style>{`
+        .hero-slideshow-container {
+          height: 520px;
+        }
+        .hero-title {
+          font-size: 28px;
+          line-height: 1.25;
+        }
+        .hero-description {
+          font-size: 15px;
+          line-height: 1.55;
+          margin-bottom: 22px;
+        }
+
+        @media (min-width: 640px) {
+          .hero-slideshow-container {
+            height: 600px;
+          }
+          .hero-title {
+            font-size: 36px;
+          }
+          .hero-description {
+            font-size: 16px;
+            margin-bottom: 28px;
+          }
+        }
+
+        @media (min-width: 1024px) {
+          .hero-slideshow-container {
+            height: 700px;
+          }
+          .hero-title {
+            font-size: 46px;
+          }
+          .hero-description {
+            font-size: 18px;
+            margin-bottom: 32px;
+          }
+        }
+
         @keyframes fadeInUp {
           from {
             opacity: 0;

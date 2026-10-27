@@ -274,8 +274,8 @@
 /* Action Buttons */
 .product-actions-buttons {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
     order: -1;
     margin-bottom: 24px;
 }
@@ -641,6 +641,54 @@
     color: white;
     box-shadow: var(--shadow-lg);
     transform: translateY(-2px);
+}
+
+.btn-share {
+    background: #f8fafc;
+    color: #1e293b;
+    border: 1.5px solid #cbd5e1;
+    box-shadow: var(--shadow-sm);
+    padding: 16px 20px;
+    width: auto;
+}
+
+.btn-share:hover {
+    background: #FFF8E1;
+    border-color: #F8D548;
+    color: #854d0e;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.share-header-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 9999px;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.share-header-btn:hover {
+    background: #FFF8E1;
+    border-color: #F8D548;
+    color: #854d0e;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 640px) {
+    .product-actions-buttons {
+        grid-template-columns: 1fr 1fr;
+    }
+    .product-actions-buttons .btn-share {
+        grid-column: span 2;
+    }
 }
 
 /* Responsive */

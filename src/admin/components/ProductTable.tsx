@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, Share2, Check } from 'lucide-react';
 import { AdminProduct } from '../../types/admin';
 import { apiUrl } from '../../utils/shopApi';
 import '../styles/admin.css';
@@ -44,6 +44,15 @@ interface ProductTableProps {
 }
 
 export function ProductTable({ products, onEdit, onDelete }: ProductTableProps) {
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const handleCopyShareLink = (product: AdminProduct) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.nivaranupcyclers.com';
+    const link = `${origin}/product/${product.id}?buy=1`;
+    navigator.clipboard.writeText(link).catch(() => {});
+    setCopiedId(product.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   if (products.length === 0) {
     return (
       <div className="admin-empty-state">
@@ -91,6 +100,17 @@ export function ProductTable({ products, onEdit, onDelete }: ProductTableProps) 
                 </td>
                 <td>{product.featured ? '⭐ Yes' : 'No'}</td>
                 <td className="product-actions">
+                  <button
+                    className="action-btn share"
+                    onClick={() => handleCopyShareLink(product)}
+                    title={copiedId === product.id ? "Direct Buy Link Copied!" : "Copy Direct Buy Link to share"}
+                    style={{
+                      color: copiedId === product.id ? '#10B981' : undefined,
+                      borderColor: copiedId === product.id ? '#10B981' : undefined
+                    }}
+                  >
+                    {copiedId === product.id ? <Check size={16} /> : <Share2 size={16} />}
+                  </button>
                   <button
                     className="action-btn edit"
                     onClick={() => onEdit(product)}

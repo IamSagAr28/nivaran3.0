@@ -6,8 +6,9 @@ import { useRouter } from '../../utils/Router'
 import { apiUrl, fetchProductById } from '../../utils/shopApi'
 import { 
   ShoppingCart, Star, Package, Leaf, Truck, RefreshCw, ChevronLeft, ChevronRight, 
-  MapPin, CheckCircle2, Heart, Shield, Award, Sparkles, Check 
+  MapPin, CheckCircle2, Heart, Shield, Award, Sparkles, Check, Share2 
 } from 'lucide-react'
+import ShareProductModal from './ShareProductModal'
 import { ProductShowcaseSection, WhyChooseUsConfig, WhyChooseUsItem } from '../../types/admin'
 import '../../styles/ProductDetailPage.css'
 
@@ -100,6 +101,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({})
   const [selectedLegacyColor, setSelectedLegacyColor] = useState('')
   const [selectedCity, setSelectedCity] = useState<string>('')
+  const [isShareOpen, setIsShareOpen] = useState(false)
 
   // Determine city & product identifier from URL / params
   const pathSegments = window.location.pathname.split('/').filter(Boolean)
@@ -183,6 +185,22 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
       .catch(() => setError('Product not found.'))
       .finally(() => setLoading(false))
   }, [id])
+
+  // Automatic direct-buy handling from shared link (e.g. /product/15?buy=1)
+  useEffect(() => {
+    if (!product || loading) return;
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const isDirectBuy = searchParams.get('buy') === '1' || searchParams.get('buy') === 'now' || searchParams.get('action') === 'buy';
+      if (isDirectBuy && Number(product.stock || 0) > 0) {
+        handleAddToCart();
+        const timer = setTimeout(() => {
+          navigateTo('/shop-cart');
+        }, 350);
+        return () => clearTimeout(timer);
+      }
+    } catch {}
+  }, [product, loading]);
 
   // Dynamic SEO Meta Tags & Schema.org Local Product Data
   useEffect(() => {
@@ -600,16 +618,39 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
               >
                 Buy Now
               </button>
+
+              <button
+                type="button"
+                onClick={() => setIsShareOpen(true)}
+                className="btn btn-share"
+                title="Share this product with a customer"
+                aria-label="Share product"
+              >
+                <Share2 className="btn-icon" />
+                <span>Share</span>
+              </button>
             </div>
 
             <div className="product-header">
-              <div className="product-badges">
-                <span className="product-category">{product.category}</span>
-                {product.featured === 1 && (
-                  <span className="product-featured-badge">
-                    <Star className="badge-icon" /> Featured
-                  </span>
-                )}
+              <div className="product-badges" style={{ justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                  <span className="product-category">{product.category}</span>
+                  {product.featured === 1 && (
+                    <span className="product-featured-badge">
+                      <Star className="badge-icon" /> Featured
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsShareOpen(true)}
+                  className="share-header-btn"
+                  title="Share product link"
+                  aria-label="Share product"
+                >
+                  <Share2 size={15} />
+                  <span>Share</span>
+                </button>
               </div>
               <h1 className="product-title">{product.title}</h1>
 
@@ -952,6 +993,21 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
           </div>
         </section>
       </main>
+
+      {product && (
+        <ShareProductModal
+          isOpen={isShareOpen}
+          onClose={() => setIsShareOpen(false)}
+          product={{
+            id: product.id,
+            title: product.title,
+            price: currentVariant?.price ?? product.price,
+            image: product.images?.[0] ? apiUrl(`/api/products/${product.id}/media/0`) : '',
+            category: product.category,
+            custom_slug: product.custom_slug
+          }}
+        />
+      )}
 
       <Footer />
     </div>

@@ -4,6 +4,8 @@ import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
 import { apiUrl, fetchProducts, fetchCategories } from '../../utils/shopApi'
+import { Share2 } from 'lucide-react'
+import ShareProductModal, { ShareProduct } from './ShareProductModal'
 
 
 interface Product {
@@ -73,6 +75,7 @@ export default function ShopPage() {
   const [maxPrice, setMaxPrice] = useState(10000)
   const [stockFilter, setStockFilter] = useState<'all' | 'in' | 'out'>('all')
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
+  const [shareProduct, setShareProduct] = useState<ShareProduct | null>(null)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -325,7 +328,7 @@ export default function ShopPage() {
                             ? p.variant_types.map(vt => `${vt.options.length} ${vt.name}s`).join(' • ')
                             : `${p.colors?.length || 0} colours`} / {p.material}
                         </div>
-                        <div className="product-actions" style={{ marginTop: '12px' }}>
+                        <div className="product-actions" style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
@@ -333,6 +336,7 @@ export default function ShopPage() {
                           }}
                           disabled={p.stock === 0}
                           className={`btn-primary ${p.stock === 0 ? 'btn-disabled' : addedIds.has(String(p.id)) ? 'btn-added' : ''}`}
+                          style={{ flex: 1 }}
                         >
                           {addedIds.has(String(p.id)) ? 'Added' : 'Add to Cart'}
                         </button>
@@ -340,7 +344,46 @@ export default function ShopPage() {
                           onClick={(e) => { e.stopPropagation(); navigateTo(getProductDetailUrl(p)); }}
                           className="btn-secondary"
                         >
-                          View Details
+                          View
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShareProduct({
+                              id: p.id,
+                              title: p.title,
+                              price: p.price,
+                              image: apiUrl(`/api/products/${p.id}/media/0`),
+                              category: p.category,
+                              custom_slug: p.custom_slug
+                            });
+                          }}
+                          title="Share Product Link"
+                          aria-label="Share product"
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            backgroundColor: '#ffffff',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#374151',
+                            transition: 'all 0.2s'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.backgroundColor = '#FFF8E1';
+                            e.currentTarget.style.borderColor = '#F8D548';
+                            e.currentTarget.style.color = '#854d0e';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.backgroundColor = '#ffffff';
+                            e.currentTarget.style.borderColor = '#e5e7eb';
+                            e.currentTarget.style.color = '#374151';
+                          }}
+                        >
+                          <Share2 size={16} />
                         </button>
                       </div>
                       <div className="product-brand">NIVARAN UPCYCLERS</div>
@@ -354,6 +397,15 @@ export default function ShopPage() {
       </div>
 
       <div className="footer-spacer" />
+
+      {shareProduct && (
+        <ShareProductModal
+          isOpen={Boolean(shareProduct)}
+          onClose={() => setShareProduct(null)}
+          product={shareProduct}
+        />
+      )}
+
       <Footer />
 
       <style>{`
