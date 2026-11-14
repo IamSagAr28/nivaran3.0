@@ -399,13 +399,6 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         res.json(parsed);
       });
     }
-        const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
-        const parsed = parseProduct(updated);
-        parsed.images = [];
-        triggerSitemapUpdate();
-        res.json(parsed);
-      });
-    }
   } catch (err) {
     console.error('PUT /admin/products error:', err);
     res.status(500).json({ error: 'Failed to update product' });
