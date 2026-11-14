@@ -291,11 +291,14 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
     }
 
     return () => {
-      document.title = originalTitle;
-      if (oldDesc) metaDesc?.setAttribute('content', oldDesc);
-      if (schemaScript && schemaScript.parentNode) {
-        schemaScript.parentNode.removeChild(schemaScript);
-      }
+      try {
+        document.title = originalTitle;
+        if (oldDesc && metaDesc) metaDesc.setAttribute('content', oldDesc);
+        const script = document.getElementById('product-schema-jsonld');
+        if (script && script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+      } catch {}
     };
   }, [product, selectedCity]);
 
