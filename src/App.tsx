@@ -4,6 +4,7 @@ import { CartProvider } from './contexts/CartContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ShopCartProvider } from './contexts/ShopCartContext';
 import { LoadingSpinner } from './components/LoadingSpinner';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthForm } from "./components/AuthForm";
 import { ImageWithFallback } from "./components/figma/ImageWithFallback";
 import HomePage from "./components/HomePage";
@@ -52,8 +53,9 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <ShopCartProvider>
-          <Suspense fallback={<LoadingSpinner />}>
-            <Router fallback={<NotFoundPage />}>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Router fallback={<NotFoundPage />}>
             {/* Main Website Routes */}
             <Route path="/" component={HomePage} />
             <Route path="/dashboard" component={Dashboard} />
@@ -122,6 +124,7 @@ export default function App() {
             <Route path="/:cityCode/:slug" component={ProductDetailPage} />
           </Router>
           </Suspense>
+          </ErrorBoundary>
         </ShopCartProvider>
       </CartProvider>
     </AuthProvider>
