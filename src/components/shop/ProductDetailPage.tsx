@@ -108,10 +108,15 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
   const [isShareOpen, setIsShareOpen] = useState(false)
 
   // Determine city & product identifier from URL / params
-  const pathSegments = window.location.pathname.split('/').filter(Boolean)
+  const rawPath = window.location.pathname
+  const pathSegments = rawPath.split('/').filter(Boolean).map(seg => {
+    try { return decodeURIComponent(seg); } catch { return seg; }
+  })
   const isCityRoute = Boolean(params?.cityCode || (pathSegments.length >= 2 && CITY_CODE_MAP[pathSegments[0]?.toLowerCase()]))
   const detectedCityCode = (params?.cityCode || (isCityRoute ? pathSegments[0] : '')).toLowerCase()
-  const detectedSlug = params?.slug || (isCityRoute ? pathSegments[1] : (params?.id || pathSegments[pathSegments.length - 1] || ''))
+  const rawSlug = params?.slug || (isCityRoute ? pathSegments[1] : (params?.id || pathSegments[pathSegments.length - 1] || ''))
+  let detectedSlug = rawSlug
+  try { detectedSlug = decodeURIComponent(rawSlug); } catch {}
 
   const id = detectedSlug;
 
@@ -150,6 +155,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
         if (product) {
           const code = CITY_TO_CODE[city.toLowerCase()] || city.toLowerCase().slice(0, 3);
           const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
+          const citySlugPart = city.toLowerCase().replace(/\s+/g, '-');
           if (product.custom_slug) {
             navigateTo(`/${code}/${product.custom_slug}-in-${citySlugPart}`);
           } else {
@@ -250,39 +256,43 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
       : defaultCanonical;
     canonical.setAttribute('href', effectiveCanonical);
 
-    // JSON-LD Schema markup for Google Rich Snippets
-    let schemaScript = document.getElementById('product-schema-jsonld') as HTMLScriptElement | null;
-    if (!schemaScript) {
-      schemaScript = document.createElement('script');
-      schemaScript.id = 'product-schema-jsonld';
-      schemaScript.type = 'application/ld+json';
-      document.head.appendChild(schemaScript);
-    }
-    const schemaData = {
-      '@context': 'https://schema.org/',
-      '@type': 'Product',
-      name: `${product.title}${citySuffix}`,
-      image: Array.isArray(product.images) && product.images.length > 0 ? product.images : undefined,
-      description: newDesc,
-      brand: {
-        '@type': 'Brand',
-        name: 'Nivaran Upcyclers'
-      },
-      offers: {
-        '@type': 'Offer',
-        url: window.location.href,
-        priceCurrency: 'INR',
-        price: product.price,
-        availability: (product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-        ...(selectedCity ? {
-          eligibleRegion: {
-            '@type': 'City',
-            name: selectedCity
-          }
-        } : {})
+    try {
+      // JSON-LD Schema markup for Google Rich Snippets
+      let schemaScript = document.getElementById('product-schema-jsonld') as HTMLScriptElement | null;
+      if (!schemaScript) {
+        schemaScript = document.createElement('script');
+        schemaScript.id = 'product-schema-jsonld';
+        schemaScript.type = 'application/ld+json';
+        document.head.appendChild(schemaScript);
       }
-    };
-    schemaScript.textContent = JSON.stringify(schemaData);
+      const schemaData = {
+        '@context': 'https://schema.org/',
+        '@type': 'Product',
+        name: `${product.title}${citySuffix}`,
+        image: Array.isArray(product.images) && product.images.length > 0 ? product.images : undefined,
+        description: effectiveDesc,
+        brand: {
+          '@type': 'Brand',
+          name: 'Nivaran Upcyclers'
+        },
+        offers: {
+          '@type': 'Offer',
+          url: window.location.href,
+          priceCurrency: 'INR',
+          price: product.price,
+          availability: (product.stock || 0) > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+          ...(selectedCity ? {
+            eligibleRegion: {
+              '@type': 'City',
+              name: selectedCity
+            }
+          } : {})
+        }
+      };
+      schemaScript.textContent = JSON.stringify(schemaData);
+    } catch (schemaErr) {
+      console.warn('Schema generation warning:', schemaErr);
+    }
 
     return () => {
       document.title = originalTitle;
