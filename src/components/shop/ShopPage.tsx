@@ -46,19 +46,21 @@ const CITY_TO_CODE: Record<string, string> = {
 };
 
 function getProductDetailUrl(p: Product) {
+  if (!p || !p.id) return '/products';
+  const safeId = p.id;
+  const rawTitle = p.title || 'product';
+  const baseSlug = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
   try {
     const prefCity = localStorage.getItem('preferred_city');
     if (prefCity) {
       const code = CITY_TO_CODE[prefCity.toLowerCase()] || 'kn';
-      const baseSlug = (p.custom_slug || p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
       const citySlugPart = prefCity.toLowerCase().replace(/\s+/g, '-');
-      if (p.custom_slug) {
-        return `/${code}/${p.custom_slug}-in-${citySlugPart}`;
-      }
-      return `/${code}/${p.id}-${baseSlug}-in-${citySlugPart}`;
+      // Always include product ID so each product is 100% uniquely identified!
+      return `/${code}/${safeId}-${baseSlug}-in-${citySlugPart}`;
     }
   } catch {}
-  return `/product/${p.id}`;
+  return `/product/${safeId}`;
 }
 
 interface ShopPageProps {
@@ -237,11 +239,13 @@ export default function ShopPage({ params }: ShopPageProps = {}) {
     scriptTag.textContent = JSON.stringify(schemaData)
 
     return () => {
-      document.title = originalTitle
-      if (prevDesc) metaDesc?.setAttribute('content', prevDesc)
-      if (prevCanonical) canonical?.setAttribute('href', prevCanonical)
-      const existingScript = document.getElementById(scriptId)
-      if (existingScript) existingScript.remove()
+      try {
+        document.title = originalTitle
+        if (prevDesc && metaDesc) metaDesc.setAttribute('content', prevDesc)
+        if (prevCanonical && canonical) canonical.setAttribute('href', prevCanonical)
+        const existingScript = document.getElementById(scriptId)
+        if (existingScript && existingScript.parentNode) existingScript.parentNode.removeChild(existingScript)
+      } catch {}
     }
   }, [selectedCategory])
 
@@ -255,37 +259,46 @@ export default function ShopPage({ params }: ShopPageProps = {}) {
     }
   }
 
-  const maxProductPrice = useMemo(() =>
-    products.length > 0 ? Math.max(...products.map(p => p.price)) : 10000, [products])
+  const maxProductPrice = useMemo(() => {
+    if (!Array.isArray(products) || products.length === 0) return 10000;
+    const prices = products.map(p => Number(p?.price) || 0).filter(pr => pr > 0);
+    return prices.length > 0 ? Math.max(...prices) : 10000;
+  }, [products]);
 
   useEffect(() => {
-    if (maxProductPrice > 0) setMaxPrice(maxProductPrice)
-  }, [maxProductPrice])
+    if (maxProductPrice > 0) setMaxPrice(maxProductPrice);
+  }, [maxProductPrice]);
 
   const filtered = useMemo(() => {
-    let list = [...products]
-    if (selectedCategory !== 'All') {
-      const selectedSlug = categoryToSlug(selectedCategory)
-      list = list.filter(p => p.category === selectedCategory || categoryToSlug(p.category) === selectedSlug)
+    if (!Array.isArray(products)) return [];
+    let list = [...products];
+    if (selectedCategory && selectedCategory !== 'All') {
+      const selectedSlug = categoryToSlug(selectedCategory);
+      list = list.filter(p => p && (p.category === selectedCategory || categoryToSlug(p.category) === selectedSlug));
     }
     if (search) {
-      const q = search.toLowerCase()
+      const q = search.toLowerCase();
       list = list.filter(p =>
-        p.title.toLowerCase().includes(q) ||
-        (p.description || '').toLowerCase().includes(q) ||
-        p.material.toLowerCase().includes(q)
-      )
+        p && (
+          (p.title || '').toLowerCase().includes(q) ||
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.material || '').toLowerCase().includes(q)
+        )
+      );
     }
-    list = list.filter(p => p.price >= minPrice && p.price <= maxPrice)
-    if (stockFilter === 'in') list = list.filter(p => p.stock > 0)
-    if (stockFilter === 'out') list = list.filter(p => p.stock === 0)
+    list = list.filter(p => {
+      const pr = Number(p?.price) || 0;
+      return pr >= minPrice && pr <= maxPrice;
+    });
+    if (stockFilter === 'in') list = list.filter(p => Number(p?.stock || 0) > 0);
+    if (stockFilter === 'out') list = list.filter(p => Number(p?.stock || 0) === 0);
     
-    if (sort === 'price_asc') list.sort((a, b) => a.price - b.price)
-    else if (sort === 'price_desc') list.sort((a, b) => b.price - a.price)
-    else list.sort((a, b) => new Date(b.created_at || b.createdAt || '').getTime() - new Date(a.created_at || a.createdAt || '').getTime())
+    if (sort === 'price_asc') list.sort((a, b) => (Number(a?.price) || 0) - (Number(b?.price) || 0));
+    else if (sort === 'price_desc') list.sort((a, b) => (Number(b?.price) || 0) - (Number(a?.price) || 0));
+    else list.sort((a, b) => new Date(b?.created_at || b?.createdAt || 0).getTime() - new Date(a?.created_at || a?.createdAt || 0).getTime());
     
-    return list
-  }, [products, selectedCategory, search, minPrice, maxPrice, sort, stockFilter])
+    return list;
+  }, [products, selectedCategory, search, minPrice, maxPrice, sort, stockFilter]);
 
   const handleAddToCart = (e: React.MouseEvent, p: Product) => {
     e.stopPropagation()
@@ -499,7 +512,7 @@ export default function ShopPage({ params }: ShopPageProps = {}) {
                     <div className="product-body">
                       <div className="product-meta">{p.category}</div>
                       <div className="product-title">{p.title}</div>
-                      <div className="product-price">₹{p.price.toFixed(0)}</div>
+                      <div className="product-price">₹{Number(p.price || 0).toFixed(0)}</div>
                         <div className="product-sub" style={{ fontSize: '0.75rem', marginTop: '4px', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {p.variant_types && p.variant_types.length > 0
                             ? p.variant_types.map(vt => `${vt.options.length} ${vt.name}s`).join(' • ')

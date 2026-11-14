@@ -154,13 +154,9 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
         localStorage.setItem('preferred_city', city);
         if (product) {
           const code = CITY_TO_CODE[city.toLowerCase()] || city.toLowerCase().slice(0, 3);
-          const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
+          const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, '');
           const citySlugPart = city.toLowerCase().replace(/\s+/g, '-');
-          if (product.custom_slug) {
-            navigateTo(`/${code}/${product.custom_slug}-in-${citySlugPart}`);
-          } else {
-            navigateTo(`/${code}/${product.id}-${baseSlug}-in-${citySlugPart}`);
-          }
+          navigateTo(`/${code}/${product.id}-${baseSlug}-in-${citySlugPart}`);
           return;
         }
       } else {
@@ -312,9 +308,9 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
 
     if (currentPath.startsWith('/product/') || search.includes('city=')) {
       const code = CITY_TO_CODE[selectedCity.toLowerCase()] || 'kn';
-      const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/-+$/, '');
+      const baseSlug = (product.custom_slug || product.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')).replace(/^-+|-+$/g, '');
       const citySlugPart = selectedCity.toLowerCase().replace(/\s+/g, '-');
-      const cleanUrl = `/${code}/${baseSlug}-in-${citySlugPart}`;
+      const cleanUrl = `/${code}/${product.id}-${baseSlug}-in-${citySlugPart}`;
       window.history.replaceState({}, '', cleanUrl);
     }
   }, [product, selectedCity]);
