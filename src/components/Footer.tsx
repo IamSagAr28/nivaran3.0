@@ -1,5 +1,6 @@
 import { Facebook, Instagram, Twitter, Mail, Phone, MapPin } from "lucide-react";
 import { useRouter } from "../utils/Router";
+import { getCategoryUrl } from "../utils/categorySlug";
 import { useState } from 'react';
 import axios from 'axios';
 
@@ -119,10 +120,10 @@ export function Footer() {
               <div className="space-y-4">
                 <h4 className="text-[#F8D548] font-bold mb-4">Shop</h4>
                 <div className="space-y-3">
-                  <button onClick={() => navigateTo('/products')} className="block text-[#FFF6D1] hover:text-white transition-colors">All Products</button>
-                  <button onClick={() => navigateTo('/products')} className="block text-[#FFF6D1] hover:text-white transition-colors">Wall Hangings</button>
-                  <button onClick={() => navigateTo('/products')} className="block text-[#FFF6D1] hover:text-white transition-colors">Home Decor</button>
-                  <button onClick={() => navigateTo('/products')} className="block text-[#FFF6D1] hover:text-white transition-colors">Bags & Pouches</button>
+                  <a href="/products" onClick={(e) => { e.preventDefault(); navigateTo('/products'); }} className="block text-[#FFF6D1] hover:text-white transition-colors">All Products</a>
+                  <a href={getCategoryUrl('Wall Hangings')} onClick={(e) => { e.preventDefault(); navigateTo(getCategoryUrl('Wall Hangings')); }} className="block text-[#FFF6D1] hover:text-white transition-colors">Wall Hangings</a>
+                  <a href={getCategoryUrl('Home Decor')} onClick={(e) => { e.preventDefault(); navigateTo(getCategoryUrl('Home Decor')); }} className="block text-[#FFF6D1] hover:text-white transition-colors">Home Decor</a>
+                  <a href={getCategoryUrl('Bags')} onClick={(e) => { e.preventDefault(); navigateTo(getCategoryUrl('Bags')); }} className="block text-[#FFF6D1] hover:text-white transition-colors">Bags & Pouches</a>
                 </div>
               </div>
 
@@ -133,7 +134,7 @@ export function Footer() {
                   <button onClick={() => scrollToSection('about')} className="block text-[#FFF6D1] hover:text-white transition-colors">Our Story</button>
                   <button onClick={() => scrollToSection('about')} className="block text-[#FFF6D1] hover:text-white transition-colors">Mission</button>
                   <button onClick={() => scrollToSection('workshops')} className="block text-[#FFF6D1] hover:text-white transition-colors">Workshops</button>
-                  <button onClick={() => navigateTo('/')} className="block text-[#FFF6D1] hover:text-white transition-colors">Membership</button>
+                  <button onClick={() => navigateTo('/membership')} className="block text-[#FFF6D1] hover:text-white transition-colors">Annual Membership</button>
                 </div>
               </div>
             </div>
@@ -250,10 +251,10 @@ export function Footer() {
               <p>© 2026 Nivaran Upcyclers. All rights reserved.</p>
               <p className="text-xs mt-1">Designed and Developed by LI-MAT SOFT SOLUTIONS PVT LTD</p>
             </div>
-            <div className="flex gap-6">
-              <a href="https://shop.nivaranupcyclers.in/policies/privacy-policy" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="https://shop.nivaranupcyclers.in/policies/terms-of-service" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="https://shop.nivaranupcyclers.in/policies/shipping-policy" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Shipping Policy</a>
+            <div className="flex flex-wrap justify-center md:justify-end gap-6">
+              <button onClick={() => { navigateTo('/privacy-policy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#F8D548] transition-colors">Privacy Policy</button>
+              <button onClick={() => { navigateTo('/terms-of-service'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#F8D548] transition-colors">Terms of Service</button>
+              <button onClick={() => { navigateTo('/shipping-policy'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="hover:text-[#F8D548] transition-colors">Shipping Policy</button>
             </div>
           </div>
         </div>

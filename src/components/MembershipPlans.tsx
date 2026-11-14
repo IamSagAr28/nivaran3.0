@@ -14,11 +14,23 @@ export function MembershipPlans() {
   const handleChoosePlan = (plan: any) => {
     setSelectedPlan(plan);
     setShowForm(true);
+    setTimeout(() => {
+      const el = document.getElementById('membership-form-container') || document.getElementById('membership');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
   };
 
   const handleBack = () => {
     setShowForm(false);
     setSelectedPlan(null);
+    setTimeout(() => {
+      const el = document.getElementById('membership');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
   };
   const plans = [
     {
@@ -67,27 +79,29 @@ export function MembershipPlans() {
   ];
 
   const cardVariants: Variants = {
-    hidden: (index: number) => ({
+    hidden: {
       opacity: 0,
-      x: index === 0 ? -150 : index === 2 ? 150 : 0, // Left card from left, right card from right
-      y: index === 1 ? 100 : 0, // Middle card from below
-      scale: 0.9,
-    }),
+      y: 25,
+      scale: 0.98,
+    },
     visible: (index: number) => ({
       opacity: 1,
-      x: 0,
       y: 0,
       scale: 1,
       transition: {
-        duration: 4,
-        ease: [0.4, 0, 0.2, 1],
-        delay: index * 0.2,
+        duration: 0.5,
+        ease: "easeOut",
+        delay: index * 0.12,
       },
     }),
   };
 
   if (showForm && selectedPlan) {
-    return <MembershipForm plan={selectedPlan} onBack={handleBack} />;
+    return (
+      <div id="membership-form-container">
+        <MembershipForm plan={selectedPlan} onBack={handleBack} />
+      </div>
+    );
   }
 
   return (

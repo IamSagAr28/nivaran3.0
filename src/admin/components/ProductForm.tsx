@@ -122,6 +122,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     variant_types: '[]',
     material: '',
     custom_slug: '',
+    meta_title: '',
+    meta_description: '',
+    canonical_url: '',
     stock: 0,
     featured: false,
     images: '[]',
@@ -165,6 +168,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       variant_types: '[]',
       material: '',
       custom_slug: '',
+      meta_title: '',
+      meta_description: '',
+      canonical_url: '',
       stock: 0,
       featured: false,
       images: '[]',
@@ -625,9 +631,34 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   };
 
   const copyShowcaseFromGlobal = (city: string) => {
+    const rawGlobal = showcaseSections;
+    const globalList: ProductShowcaseSection[] = [];
+    if (imagePreviews.length > 0) {
+      imagePreviews.forEach((imgUrl, idx) => {
+        const existing = rawGlobal[idx] || rawGlobal.find(s => s.image === imgUrl);
+        const isAlternateRight = idx % 2 === 1;
+        globalList.push({
+          id: existing?.id || `sec_img_${idx}`,
+          image: imgUrl,
+          imageAlt: existing?.imageAlt || `Product View ${idx + 1}`,
+          tag: existing?.tag || '',
+          title: existing?.title || '',
+          description: existing?.description || '',
+          bullets: Array.isArray(existing?.bullets) ? existing.bullets : [],
+          layout: existing?.layout || (isAlternateRight ? 'image-right' : 'image-left')
+        });
+      });
+      if (rawGlobal.length > imagePreviews.length) {
+        for (let i = imagePreviews.length; i < rawGlobal.length; i++) {
+          globalList.push(rawGlobal[i]);
+        }
+      }
+    } else {
+      globalList.push(...rawGlobal);
+    }
     setCityShowcaseSections(prev => ({
       ...prev,
-      [city]: JSON.parse(JSON.stringify(getCurrentShowcaseList()))
+      [city]: JSON.parse(JSON.stringify(globalList))
     }));
   };
 
@@ -733,8 +764,40 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setSaving(true);
     try {
       const totalStock = newVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
-      const finalShowcase = (showcaseSections.length > 0 ? showcaseSections : getCurrentShowcaseList())
-        .filter(s => (s.title && s.title.trim().length > 0) || (s.description && s.description.trim().length > 0));
+      
+      // Global showcase: only take from showcaseSections (the Global tab), never active city tab!
+      const finalShowcase = (showcaseSections || [])
+        .filter(s => (s.title && s.title.trim().length > 0) || (s.description && s.description.trim().length > 0) || (s.bullets && s.bullets.length > 0));
+
+      // Clean city showcase sections so only configured cities are stored
+      const cleanedCityShowcase: Record<string, ProductShowcaseSection[]> = {};
+      Object.entries(cityShowcaseSections).forEach(([cityName, sections]) => {
+        if (Array.isArray(sections)) {
+          const valid = sections.filter(s => (s.title && s.title.trim().length > 0) || (s.description && s.description.trim().length > 0) || (s.bullets && s.bullets.length > 0));
+          if (valid.length > 0) {
+            cleanedCityShowcase[cityName] = valid;
+          }
+        }
+      });
+
+      // Clean and normalize city slugs: remove leading/trailing slashes and illegal characters
+      const cleanedCitySlugs: Record<string, string> = {};
+      Object.entries(citySlugs).forEach(([cityName, slug]) => {
+        if (typeof slug === 'string' && slug.trim().length > 0) {
+          const cleanSlug = slug.trim().toLowerCase().replace(/^\/+/, '').replace(/\/+$/, '').replace(/[^a-z0-9-_]/g, '-');
+          if (cleanSlug) {
+            cleanedCitySlugs[cityName] = cleanSlug;
+          }
+        }
+      });
+
+      // Clean Why Choose Us: store default and customized cities cleanly
+      const cleanedWhyChoose: Record<string, WhyChooseUsConfig> = {};
+      Object.entries(whyChooseUs).forEach(([key, config]) => {
+        if (config && typeof config === 'object') {
+          cleanedWhyChoose[key] = config;
+        }
+      });
 
       const finalFormData = {
         ...formData,
@@ -743,9 +806,9 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         stock: newVariants.length > 0 ? totalStock : formData.stock,
         city_descriptions: JSON.stringify(cityDescriptions),
         showcase_sections: JSON.stringify(finalShowcase),
-        city_showcase_sections: JSON.stringify(cityShowcaseSections),
-        why_choose_us: JSON.stringify(whyChooseUs),
-        city_slugs: JSON.stringify(citySlugs),
+        city_showcase_sections: JSON.stringify(cleanedCityShowcase),
+        why_choose_us: JSON.stringify(cleanedWhyChoose),
+        city_slugs: JSON.stringify(cleanedCitySlugs),
       };
       await onSave(finalFormData);
     } finally {
@@ -783,7 +846,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 placeholder="e.g. jute-bags or organic-cotton-tote"
               />
               <span style={{ fontSize: '12px', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                Used for City SEO URLs like <code>nivaranupcyclers.com/kn/jute-bags-in-kanpur</code> or <code>nivaranupcyclers.com/del/jute-bags-in-delhi</code>.
+                Used for City SEO URLs like <code>www.nivaranupcyclers.com/kn/jute-bags-in-kanpur</code> or <code>www.nivaranupcyclers.com/del/jute-bags-in-delhi</code>.
               </span>
             </div>
           </div>
@@ -798,6 +861,89 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 placeholder="Enter general product description"
                 rows={4}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SEO & META TAGS (GOOGLE SEARCH PREVIEW & CUSTOM METADATA) */}
+        {/* ========================================================================= */}
+        <div className="form-section" style={{ border: '1px solid #93c5fd', borderRadius: '12px', padding: '20px', background: '#f0f9ff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+            <span style={{ fontSize: '20px' }}>🔍</span>
+            <h3 style={{ margin: 0, color: '#1e3a8a' }}>SEO & Meta Tags (Google Search Snippet)</h3>
+          </div>
+          <p style={{ fontSize: '13px', color: '#475569', marginBottom: '16px' }}>
+            Configure custom metadata for search engines. If left blank, Nivaran automatically uses the product title, product description, and canonical URL.
+          </p>
+
+          <div className="form-row">
+            <div className="form-group full-width">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontWeight: 600 }}>Custom Meta Title</label>
+                <span style={{ fontSize: '11px', color: (formData.meta_title?.length || 0) > 60 ? '#dc2626' : '#64748b' }}>
+                  {formData.meta_title?.length || 0} / 60 characters
+                </span>
+              </div>
+              <input
+                type="text"
+                name="meta_title"
+                value={formData.meta_title || ''}
+                onChange={handleInputChange}
+                placeholder={`Default: ${formData.title || 'Product Title'} | Eco-Friendly Upcycled Products | Nivaran`}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group full-width">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                <label style={{ fontWeight: 600 }}>Custom Meta Description</label>
+                <span style={{ fontSize: '11px', color: (formData.meta_description?.length || 0) > 160 ? '#dc2626' : '#64748b' }}>
+                  {formData.meta_description?.length || 0} / 160 characters
+                </span>
+              </div>
+              <textarea
+                name="meta_description"
+                value={formData.meta_description || ''}
+                onChange={handleInputChange}
+                placeholder="Default: Uses product description or automated city SEO description."
+                rows={2}
+              />
+            </div>
+          </div>
+
+          <div className="form-row">
+            <div className="form-group full-width">
+              <label style={{ fontWeight: 600 }}>Custom Canonical URL Tag</label>
+              <input
+                type="url"
+                name="canonical_url"
+                value={formData.canonical_url || ''}
+                onChange={handleInputChange}
+                placeholder={`Default: https://www.nivaranupcyclers.com/product/${(product as any)?.id || 'id'}`}
+              />
+              <span style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', display: 'block' }}>
+                Specify an explicit canonical link if this product is syndicated or duplicated across campaigns.
+              </span>
+            </div>
+          </div>
+
+          {/* Live Google Search Preview Box */}
+          <div style={{ background: '#ffffff', borderRadius: '8px', padding: '14px', border: '1px solid #cbd5e1', marginTop: '12px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Google Search Snippet Preview
+            </span>
+            <div style={{ marginTop: '8px' }}>
+              <div style={{ fontSize: '12px', color: '#202124' }}>
+                https://www.nivaranupcyclers.com &rsaquo; product &rsaquo; {formData.custom_slug || (formData.title ? formData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '...') }
+              </div>
+              <div style={{ fontSize: '18px', color: '#1a0dab', fontWeight: 500, lineHeight: 1.3, marginTop: '2px', cursor: 'pointer' }}>
+                {formData.meta_title || `${formData.title || 'Product Title'} | Eco-Friendly Upcycled Products | Nivaran`}
+              </div>
+              <div style={{ fontSize: '13px', color: '#4d5156', lineHeight: 1.4, marginTop: '4px' }}>
+                {formData.meta_description || formData.description || 'Discover sustainable, handcrafted eco-friendly creations from Nivaran Upcyclers.'}
+              </div>
             </div>
           </div>
         </div>
@@ -1486,7 +1632,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               const defaultCitySlug = `${defaultBaseSlug}-in-${cityName.replace(/\s+/g, '-')}`;
               const currentCustomCitySlug = (citySlugs && citySlugs[activeCityTab]) || '';
               const effectiveCitySlug = currentCustomCitySlug || defaultCitySlug;
-              const fullCityUrl = `https://nivaranupcyclers.com/${activeCityCode}/${effectiveCitySlug}`;
+              const fullCityUrl = `https://www.nivaranupcyclers.com/${activeCityCode}/${effectiveCitySlug}`;
 
               return (
                 <div style={{ marginBottom: '16px', padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, ShoppingBag, User, Menu, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ShoppingBag, User, Menu, X, LogOut, ChevronLeft, ChevronRight } from "lucide-react";
 import { useRouter } from "../utils/Router";
 import { useShopCart } from "../contexts/ShopCartContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -7,6 +7,8 @@ import { useShopifyProducts } from "../hooks/useShopifyProducts";
 import { getOptimizedImageUrl } from "../shopify/client";
 import { UserAvatar } from "./UserAvatar";
 import { fetchProducts, fetchCategories, apiUrl } from "../utils/shopApi";
+import { getCategoryUrl } from "../utils/categorySlug";
+import "../styles/Header.css";
 
 function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (path: string) => void }) {
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -58,14 +60,16 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
           }
         }
       `}</style>
-      <button
-        onClick={() => {
-          navigateTo(`/products?category=${encodeURIComponent(category.name)}`);
+      <a
+        href={getCategoryUrl(category.name)}
+        onClick={(e) => {
+          e.preventDefault();
+          navigateTo(getCategoryUrl(category.name));
         }}
         onMouseMove={handleMouseMove}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className="flex flex-col items-center gap-3 min-w-[80px] md:min-w-[96px] flex-shrink-0 text-[#2A2A2A] hover:text-[#DBB520] transition-all group"
+        className="flex flex-col items-center gap-3 min-w-[80px] md:min-w-[96px] flex-shrink-0 text-[#2A2A2A] hover:text-[#DBB520] transition-all group no-underline"
       >
         <div
           className="category-image-container bg-white transition-all duration-300 shadow-sm group-hover:shadow-lg border border-gray-100"
@@ -106,7 +110,7 @@ function CategoryCard({ category, navigateTo }: { category: any; navigateTo: (pa
           />
         </div>
         <span className="text-xs md:text-sm text-[#374151] font-medium text-center tracking-wide group-hover:text-[#DBB520] whitespace-nowrap overflow-hidden text-ellipsis w-full px-1">{category.name}</span>
-      </button>
+      </a>
     </>
   );
 }
@@ -137,6 +141,16 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
       categoryStripRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -221,225 +235,311 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
   }, [shopifyProducts]);
 
   const handleNav = (sectionId: string) => {
+    setMobileMenuOpen(false);
+
+    if (sectionId === 'membership') {
+      if (currentPath === '/') {
+        const el = document.getElementById('membership');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+      }
+      navigateTo('/membership');
+      return;
+    }
+
     if (currentPath !== '/') {
       navigateTo('/');
       setTimeout(() => {
         const el = document.getElementById(sectionId);
-        if (el) el.scrollIntoView({ behavior: 'smooth' });
-      }, 300);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 350);
     } else {
       const el = document.getElementById(sectionId);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
-    setMobileMenuOpen(false);
   };
 
   return (
-    <header className="bg-white sticky top-0 z-50" style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
-      {/* Top Navigation Bar */}
-      <div className="text-[#2A2A2A] overflow-hidden" style={{ height: '40px', backgroundColor: '#FFF44F' }}>
-        <div className="w-full px-4 h-full flex items-center text-sm relative">
-          {/* Marquee - Takes available space */}
-          <div className="flex-1 overflow-hidden" style={{ minWidth: 0, position: 'relative' }}>
-            <div className="marquee-wrapper">
-              <div className="marquee-content">
-                <span className="marquee-text">🌱 Transforming Waste into Beautiful Products | Free Shipping on Orders Above ₹999</span>
-              </div>
+    <header className="bg-white sticky top-0 z-50">
+      {/* ─── TOP ANNOUNCEMENT BAR ─── */}
+      <div className="nivaran-topbar">
+        <div className="nivaran-topbar-inner">
+          <div className="nivaran-marquee-container">
+            <div className="nivaran-marquee-track">
+              <span className="nivaran-marquee-item">🌱 Transforming Waste into Beautiful Products</span>
+              <span className="nivaran-marquee-item">📦 Free Shipping on Orders Above ₹999</span>
+              <span className="nivaran-marquee-item">✨ Handcrafted Sustainable Living</span>
+              <span className="nivaran-marquee-item">🌱 Transforming Waste into Beautiful Products</span>
+              <span className="nivaran-marquee-item">📦 Free Shipping on Orders Above ₹999</span>
+              <span className="nivaran-marquee-item">✨ Handcrafted Sustainable Living</span>
             </div>
           </div>
 
-          {/* Buttons - Fixed to right end */}
-          <div className="flex gap-4 flex-shrink-0">
-            <button onClick={() => handleNav('workshops')} className="hover:text-[#F8D548] transition-colors whitespace-nowrap">Register Now</button>
-            <button onClick={() => handleNav('contact')} className="hover:text-[#F8D548] transition-colors whitespace-nowrap">Contact Us</button>
+          <div className="nivaran-topbar-actions">
+            <button onClick={() => handleNav('workshops')} className="nivaran-topbar-link">🎨 Workshops</button>
+            <button onClick={() => handleNav('contact')} className="nivaran-topbar-link">📞 Contact Us</button>
           </div>
         </div>
-        <style>{`
-          .marquee-wrapper {
-            overflow: hidden;
-            width: 100%;
-            position: relative;
-            height: 100%;
-            display: flex;
-            align-items: center;
-          }
-          .marquee-content {
-            display: inline-flex;
-            white-space: nowrap;
-            animation: marquee 10s linear infinite;
-            will-change: transform;
-            min-width: max-content;
-          }
-          .marquee-text {
-            display: inline-block;
-            padding-right: 4rem;
-            flex-shrink: 0;
-          }
-          @keyframes marquee {
-            0% {
-              transform: translateX(0);
-            }
-            100% {
-              transform: translateX(-50%);
-            }
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .marquee-content {
-              animation: none;
-            }
-          }
-        `}</style>
       </div>
 
-      {/* Main Navigation */}
-      <div className="w-full px-4" style={{ height: '80px' }}>
-        <div className="flex items-center justify-between h-full relative">
-          {/* Logo - Left aligned */}
-          <div className="flex items-center justify-start gap-2 md:gap-4 cursor-pointer md:px-4" onClick={() => navigateTo('/')}>
+      {/* ─── MAIN NAVIGATION (DESKTOP & MOBILE BAR) ─── */}
+      <div className="nivaran-mainnav">
+        <div className="nivaran-mainnav-inner">
+          {/* Brand Logo - Left */}
+          <div className="nivaran-brand-wrapper" onClick={() => navigateTo('/')} title="Nivaran Upcyclers Home">
             <img
               src="/images/logo.png"
               alt="Nivaran Logo"
-              className="h-[60px] md:h-[70px] w-auto object-contain flex-shrink-0"
-              style={{ height: '60px', maxWidth: 'none' }}
+              className="nivaran-brand-logo"
               onError={(e) => {
-                // Fallback to original design if logo fails to load
                 const target = e.target as HTMLImageElement;
                 target.style.display = 'none';
                 if (target.parentElement) {
                   target.parentElement.innerHTML = `
-                    <div class="w-[70px] h-[70px] bg-[#DBB520] rounded-full flex items-center justify-center">
-                      <span class="text-white font-bold text-3xl">♻️</span>
-                    </div>
+                    <div style="width:44px;height:44px;background:#DBB520;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:20px;">♻️</div>
                     <div>
-                      <h1 class="text-3xl font-black text-[#1B4332]" style="font-weight: 900;">Nivaran</h1>
-                      <p class="text-base font-bold text-[#1B4332] -mt-1">Upcyclers</p>
+                      <h1 style="font-size:22px;font-weight:900;color:#1B4332;margin:0;line-height:1.1;">Nivaran</h1>
+                      <p style="font-size:11px;font-weight:700;color:#2E6F40;margin:0;">Upcyclers</p>
                     </div>
                   `;
                 }
               }}
             />
-            <div>
-              <h1 className="text-3xl font-black tracking-tight" style={{ fontWeight: 900, color: '#1B4332' }}>Nivaran<sup className="text-xs align-top ml-0.5">TM</sup></h1>
-              <p className="text-base font-bold tracking-wide" style={{ color: '#2E6F40' }}>Upcyclers</p>
+            <div className="nivaran-brand-text">
+              <span className="nivaran-brand-title">
+                Nivaran<sup style={{ fontSize: '11px', verticalAlign: 'top', marginLeft: '2px', fontWeight: 700 }}>TM</sup>
+              </span>
+              <span className="nivaran-brand-subtitle">Upcyclers</span>
             </div>
           </div>
 
-          {/* Navigation Links - Centered */}
-          <nav className="hidden md:flex items-center justify-center absolute left-1/2 transform -translate-x-1/2 gap-8">
-            <a
-              href="/"
-              onClick={(e) => { e.preventDefault(); navigateTo('/'); }}
-              className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg"
+          {/* ─── DESKTOP NAV LINKS (VISIBLE ON DESKTOP >= 1024px) ─── */}
+          <nav className="nivaran-desktop-nav" aria-label="Desktop Navigation">
+            <button onClick={() => navigateTo('/')} className="nivaran-nav-link">Home</button>
+            <button onClick={() => navigateTo('/products')} className="nivaran-nav-link">Shop</button>
+            <button
+              onClick={() => handleNav('membership')}
+              className="nivaran-nav-membership-btn"
+              title="Book Nivaran Membership"
             >
-              Home
-            </a>
-            <a
-              href="/products"
-              onClick={(e) => { e.preventDefault(); navigateTo('/products'); }}
-              className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg"
-            >
-              Shop
-            </a>
-            <a href="#about" onClick={() => handleNav('about')} className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg">About Us</a>
-            <a href="#our-story" onClick={() => handleNav('our-story')} className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg">Our Story</a>
-            <a href="#workshops" onClick={() => handleNav('workshops')} className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg">Workshops</a>
-            <a href="#contact" onClick={() => handleNav('contact')} className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium text-lg">Contact</a>
-          </nav>
-          {/* Action Icons - Right aligned */}
-          <div className="flex gap-8 items-center px-4">
-            <button className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors" onClick={() => navigateTo('/products')} title="Search Products">
-              <Search className="w-6 h-6" />
+              <span>Book Membership</span>
+              <span className="nivaran-membership-badge-pill">Pan India</span>
             </button>
+            <button onClick={() => handleNav('workshops')} className="nivaran-nav-link">Workshops</button>
+            <button onClick={() => handleNav('about')} className="nivaran-nav-link">About Us</button>
+            <button onClick={() => handleNav('our-story')} className="nivaran-nav-link">Our Story</button>
+            <button onClick={() => handleNav('contact')} className="nivaran-nav-link">Contact</button>
+          </nav>
+
+          {/* ─── ACTION ICONS (RIGHT) ─── */}
+          <div className="nivaran-header-actions">
+            <button
+              className="nivaran-icon-btn"
+              onClick={() => navigateTo('/products')}
+              title="Search Products"
+              aria-label="Search Products"
+            >
+              <Search size={21} />
+            </button>
+
             {isAuthenticated ? (
               <button
                 onClick={() => navigateTo('/dashboard')}
-                className="focus:outline-none hover:opacity-80 transition-opacity"
-                title="Dashboard"
+                className="nivaran-icon-btn"
+                title="Your Dashboard"
+                aria-label="Dashboard"
               >
                 <UserAvatar
                   firstName={user?.firstName}
                   lastName={user?.lastName}
                   size="sm"
-                  className="rounded-full w-9 h-9"
+                  className="rounded-full w-8 h-8"
                 />
               </button>
             ) : (
-              <a
-                href="/login"
-                onClick={(e) => { e.preventDefault(); navigateTo('/login'); }}
-                className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors"
+              <button
+                onClick={() => navigateTo('/login')}
+                className="nivaran-icon-btn"
+                title="Sign In / Account"
+                aria-label="Account"
               >
-                <User className="w-6 h-6" />
-              </a>
+                <User size={21} />
+              </button>
             )}
-            <a
-              href="/cart"
-              onClick={(e) => { e.preventDefault(); navigateTo('/cart'); }}
-              className="text-[#2A2A2A] hover:text-[#DBB520] transition-colors relative"
+
+            <button
+              onClick={() => navigateTo('/cart')}
+              className="nivaran-icon-btn"
+              title="Shopping Cart"
+              aria-label="Cart"
             >
-              <ShoppingBag className="w-6 h-6" />
+              <ShoppingBag size={21} />
               {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-[#F8D548] text-[#2A2A2A] text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="nivaran-cart-badge">
                   {itemCount > 9 ? '9+' : itemCount}
                 </span>
               )}
-            </a>
+            </button>
+
+            {/* Hamburger Button (Strictly Mobile Only, < 1024px) */}
             <button
-              className="md:hidden text-[#2A2A2A] hover:text-[#DBB520] transition-colors"
+              className="nivaran-hamburger-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle Navigation Menu"
             >
-              <Menu className="w-7 h-7" />
+              {mobileMenuOpen ? <X size={25} /> : <Menu size={25} />}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Mobile Menu - Compact Fixed Dropdown */}
+      {/* ─── MOBILE DRAWER & BACKDROP (< 1024px) ─── */}
       {mobileMenuOpen && (
-        <div
-          className="md:hidden fixed left-0 w-full bg-white z-[9999] shadow-2xl border-b border-gray-200"
-          style={{
-            top: '120px', // 40px top bar + 80px nav
-            maxHeight: 'calc(100vh - 140px)',
-            overflowY: 'auto',
-            backgroundColor: '#ffffff' // Force opaque white
-          }}
-        >
-          <nav className="flex flex-col gap-0 px-6 py-2">
-            <button
-              onClick={() => { setMobileMenuOpen(false); navigateTo('/'); }}
-              className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50"
-            >
-              Home
-            </button>
-            <button
-              onClick={() => { setMobileMenuOpen(false); navigateTo('/products'); }}
-              className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50"
-            >
-              Shop
-            </button>
-            <button
-              onClick={() => { setMobileMenuOpen(false); navigateTo('/cart'); }}
-              className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50"
-            >
-              Cart
-            </button>
-            <button onClick={() => handleNav('about')} className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50">About Us</button>
-            <button onClick={() => handleNav('our-story')} className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50">Our Story</button>
-            <button onClick={() => handleNav('workshops')} className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3 border-b border-gray-50">Workshops</button>
-            <button onClick={() => handleNav('contact')} className="text-left text-[#2A2A2A] hover:text-[#DBB520] transition-colors font-medium py-3">Contact</button>
-          </nav>
-        </div>
+        <>
+          <div
+            className="nivaran-mobile-backdrop"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          <aside className="nivaran-mobile-drawer" role="dialog" aria-modal="true" aria-label="Mobile Navigation">
+            {/* Drawer Header */}
+            <div className="nivaran-drawer-head">
+              <div
+                className="nivaran-brand-wrapper"
+                onClick={() => { setMobileMenuOpen(false); navigateTo('/'); }}
+              >
+                <img
+                  src="/images/logo.png"
+                  alt="Nivaran Logo"
+                  style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+                />
+                <div className="nivaran-brand-text">
+                  <span className="nivaran-brand-title" style={{ fontSize: '18px' }}>
+                    Nivaran<sup style={{ fontSize: '9px', fontWeight: 700 }}>TM</sup>
+                  </span>
+                  <span className="nivaran-brand-subtitle" style={{ fontSize: '10px' }}>Upcyclers</span>
+                </div>
+              </div>
+
+              <button
+                className="nivaran-drawer-close"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Close Menu"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Drawer Navigation Links */}
+            <div className="nivaran-drawer-menu">
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigateTo('/'); }}
+                className="nivaran-drawer-item"
+              >
+                <span>🏠</span>
+                <span>Home</span>
+              </button>
+
+              <button
+                onClick={() => { setMobileMenuOpen(false); navigateTo('/products'); }}
+                className="nivaran-drawer-item"
+              >
+                <span>🛍️</span>
+                <span>Shop All Products</span>
+              </button>
+
+              {/* Book Membership Feature Card */}
+              <div
+                onClick={() => handleNav('membership')}
+                className="nivaran-drawer-membership-card"
+                role="button"
+                tabIndex={0}
+              >
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '15px', color: '#1B4332' }}>
+                    📦 Book Membership
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#665200', marginTop: '2px', fontWeight: 500 }}>
+                    Doorstep pooja waste pickup & gift box
+                  </div>
+                </div>
+                <span className="nivaran-membership-badge-pill" style={{ background: '#1B4332', color: '#FFF44F' }}>
+                  Pan India
+                </span>
+              </div>
+
+              <button onClick={() => handleNav('workshops')} className="nivaran-drawer-item">
+                <span>🎨</span>
+                <span>Workshops & Training</span>
+              </button>
+
+              <button onClick={() => handleNav('about')} className="nivaran-drawer-item">
+                <span>ℹ️</span>
+                <span>About Us</span>
+              </button>
+
+              <button onClick={() => handleNav('our-story')} className="nivaran-drawer-item">
+                <span>🌱</span>
+                <span>Our Story & Mission</span>
+              </button>
+
+              <button onClick={() => handleNav('contact')} className="nivaran-drawer-item">
+                <span>📞</span>
+                <span>Contact & Support</span>
+              </button>
+            </div>
+
+            {/* Drawer Footer with Verified Policy Links */}
+            <div className="nivaran-drawer-footer">
+              <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.8px', color: '#9ca3af', fontWeight: 700, marginBottom: '8px' }}>
+                Customer Policies
+              </div>
+              <div className="nivaran-drawer-policy-links">
+                <span
+                  onClick={() => { setMobileMenuOpen(false); navigateTo('/privacy-policy'); }}
+                  className="nivaran-drawer-policy-link"
+                >
+                  Privacy Policy
+                </span>
+                <span>•</span>
+                <span
+                  onClick={() => { setMobileMenuOpen(false); navigateTo('/shipping-policy'); }}
+                  className="nivaran-drawer-policy-link"
+                >
+                  Shipping Policy
+                </span>
+                <span>•</span>
+                <span
+                  onClick={() => { setMobileMenuOpen(false); navigateTo('/terms-of-service'); }}
+                  className="nivaran-drawer-policy-link"
+                >
+                  Terms of Service
+                </span>
+              </div>
+              <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '6px' }}>
+                © {new Date().getFullYear()} Nivaran Upcyclers.
+              </div>
+            </div>
+          </aside>
+        </>
       )}
 
-      {/* Category Icons Strip - Single Horizontal Scrollable Line */}
+      {/* ─── CATEGORY ICONS STRIP ─── */}
       {showCategories && (
         <div className="border-t border-[#e5e7eb] relative group" style={{ backgroundColor: '#F7F1E5' }}>
           <div className="mx-auto px-4 py-3 relative flex items-center" style={{ maxWidth: '1280px' }}>
             {/* Scroll Left Button */}
             <button
               onClick={() => scrollCategoryStrip('left')}
-              className="hidden md:flex absolute left-2 z-20 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              className="absolute left-2 z-20 w-8 h-8 rounded-full bg-white/95 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              style={{ display: 'flex' }}
               title="Scroll Left"
             >
               <ChevronLeft className="w-5 h-5" />
@@ -499,7 +599,8 @@ export function Header({ showCategories = false }: { showCategories?: boolean })
             {/* Scroll Right Button */}
             <button
               onClick={() => scrollCategoryStrip('right')}
-              className="hidden md:flex absolute right-2 z-20 w-8 h-8 rounded-full bg-white/90 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              className="absolute right-2 z-20 w-8 h-8 rounded-full bg-white/95 shadow-md border border-gray-200 items-center justify-center text-gray-700 hover:text-black hover:bg-white transition-all transform hover:scale-110"
+              style={{ display: 'flex' }}
               title="Scroll Right"
             >
               <ChevronRight className="w-5 h-5" />

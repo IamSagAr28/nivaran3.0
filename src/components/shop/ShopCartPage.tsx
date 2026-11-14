@@ -4,6 +4,7 @@ import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
 import { createRazorpayOrder, verifyRazorpayPayment, validateOfferCode } from '../../utils/shopApi'
+import { usePageSeo } from '../../utils/usePageSeo'
 import { ShoppingCart, Trash2, Plus, Minus, ArrowLeft, ArrowRight, CheckCircle, Truck, ShieldCheck, Package, CreditCard } from 'lucide-react'
 
 type Step = 'cart' | 'checkout' | 'success'
@@ -22,6 +23,12 @@ interface OrderForm {
 export default function ShopCartPage() {
   const { items, removeFromCart, updateQuantity, clearCart, subtotal, totalItems } = useShopCart()
   const { navigateTo } = useRouter()
+
+  usePageSeo('/cart', {
+    title: 'Shopping Cart | Nivaran Upcyclers',
+    description: 'Review your selected handcrafted upcycled eco-friendly products in your Nivaran shopping cart.',
+    canonical: 'https://www.nivaranupcyclers.com/cart'
+  })
 
   const styleBlock = (
     <style>{`
@@ -979,18 +986,32 @@ payment-options {
                 <div key={item.id} className="cart-item">
                   <div
                     className="cart-img"
-                    onClick={() => navigateTo(`/product/${item.productId}`)}
+                    onClick={() => {
+                      if (item.category === 'Membership' || item.productId.startsWith('membership_')) {
+                        navigateTo('/membership');
+                      } else {
+                        navigateTo(`/product/${item.productId}`);
+                      }
+                    }}
                   >
                     {item.image ? (
                       <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">🌿</div>
+                      <div className="w-full h-full flex items-center justify-center text-2xl">
+                        {item.category === 'Membership' ? '📦' : '🌿'}
+                      </div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3
                       className="cart-title-link cursor-pointer hover:underline"
-                      onClick={() => navigateTo(`/product/${item.productId}`)}
+                      onClick={() => {
+                        if (item.category === 'Membership' || item.productId.startsWith('membership_')) {
+                          navigateTo('/membership');
+                        } else {
+                          navigateTo(`/product/${item.productId}`);
+                        }
+                      }}
                     >
                       {item.title}
                     </h3>

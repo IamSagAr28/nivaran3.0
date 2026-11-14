@@ -24,6 +24,7 @@ const ProfilePage = React.lazy(() => import('./components/ProfilePage'));
 const PrivacyPage = React.lazy(() => import('./components/PrivacyPage'));
 const TermsPage = React.lazy(() => import('./components/TermsPage'));
 const ShippingPage = React.lazy(() => import('./components/ShippingPage'));
+const MembershipPage = React.lazy(() => import('./components/MembershipPage'));
 const ShopPage = React.lazy(() => import('./components/shop/ShopPage'));
 const ProductDetailPage = React.lazy(() => import('./components/shop/ProductDetailPage'));
 
@@ -38,6 +39,7 @@ const HeroSlidesAdmin = React.lazy(() => import('./admin/pages/HeroSlidesAdmin')
 const MembershipAdmin = React.lazy(() => import('./admin/pages/MembershipAdmin'));
 const BlogsAdmin = React.lazy(() => import('./admin/pages/BlogsAdmin'));
 const NewsletterAdmin = React.lazy(() => import('./admin/pages/NewsletterAdmin'));
+const SeoAdmin = React.lazy(() => import('./admin/pages/SeoAdmin'));
 
 export default function App() {
   const handleAdminLogout = () => {
@@ -56,13 +58,22 @@ export default function App() {
             <Route path="/" component={HomePage} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/products" component={ShopPage} />
+            <Route path="/products/:category" component={ShopPage} />
             <Route path="/product/:id" component={ProductDetailPage} />
             <Route path="/blogs/:blogHandle/:articleHandle" component={BlogPostPage} />
             <Route path="/cart" component={ShopCartPage} />
+            <Route path="/shop-cart" component={ShopCartPage} />
             <Route path="/profile" component={ProfilePage} />
+            <Route path="/membership" component={MembershipPage} />
             <Route path="/privacy" component={PrivacyPage} />
+            <Route path="/privacy-policy" component={PrivacyPage} />
+            <Route path="/policies/privacy-policy" component={PrivacyPage} />
             <Route path="/terms" component={TermsPage} />
+            <Route path="/terms-of-service" component={TermsPage} />
+            <Route path="/policies/terms-of-service" component={TermsPage} />
             <Route path="/shipping" component={ShippingPage} />
+            <Route path="/shipping-policy" component={ShippingPage} />
+            <Route path="/policies/shipping-policy" component={ShippingPage} />
 
             {/* Admin Routes */}
             <Route path="/admin-login" component={AdminLogin} />
@@ -101,6 +112,10 @@ export default function App() {
              <Route
                path="/admin/newsletter"
                component={() => <NewsletterAdmin onLogout={handleAdminLogout} />}
+             />
+             <Route
+               path="/admin/seo"
+               component={() => <SeoAdmin onLogout={handleAdminLogout} />}
              />
 
             {/* City SEO Programmatic Landing Routes (e.g. /kn/jute-bags-in-kanpur) */}

@@ -4,12 +4,13 @@ import { getOptimizedImageUrl } from '../shopify/client';
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useRouter } from '../utils/Router';
 import { fetchProducts, fetchCategories, apiUrl } from '../utils/shopApi';
+import { getCategoryUrl } from '../utils/categorySlug';
 
 const DEFAULT_SHOWCASE_CATEGORIES = [
-  { name: 'Upcycled Bags', productType: 'Upcycled Bags', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80', handle: 'upcycled-bags', isIndividualProduct: false },
-  { name: 'Handmade Paper', productType: 'Handmade Paper', image: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80', handle: 'handmade-paper', isIndividualProduct: false },
-  { name: 'Eco Stationery', productType: 'Eco Stationery', image: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=600&q=80', handle: 'eco-stationery', isIndividualProduct: false },
-  { name: 'Home Decor', productType: 'Home Decor', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=600&q=80', handle: 'home-decor', isIndividualProduct: false },
+  { name: 'Upcycled Bags', productType: 'Bags', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=600&q=80', handle: 'bags', isIndividualProduct: false },
+  { name: 'Bamboo Products', productType: 'Bamboo products', image: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?auto=format&fit=crop&w=600&q=80', handle: 'bamboo-products', isIndividualProduct: false },
+  { name: 'Eco Stationery', productType: 'Stationery', image: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=600&q=80', handle: 'stationery', isIndividualProduct: false },
+  { name: 'Home Decor', productType: 'Household decoratives', image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=600&q=80', handle: 'home-decor', isIndividualProduct: false },
 ];
 
 export function CategoryShowcase() {
@@ -182,26 +183,27 @@ export function CategoryShowcase() {
         {/* Category Cards */}
         <div className="grid md:grid-cols-4 gap-6">
           {categories.length > 0 ? (
-            categories.map((category, index) => (
-              <div
-                key={category.handle}
-                className="group cursor-pointer"
-                onClick={() => {
-                  console.log('🎯 Category clicked:', {
-                    name: category.name,
-                    productType: category.productType,
-                    isIndividualProduct: (category as any).isIndividualProduct
-                  });
+            categories.map((category, index) => {
+              const targetUrl = (category as any).isIndividualProduct
+                ? `/product?handle=${category.handle}`
+                : getCategoryUrl(category.productType || category.name);
 
-                  // If it's an individual product, navigate directly to it
-                  if ((category as any).isIndividualProduct) {
-                    navigateTo(`/product?handle=${category.handle}`);
-                  } else {
-                    // Otherwise navigate to products page with category filter
-                    navigateTo(`/products?category=${encodeURIComponent(category.productType || category.name)}`);
-                  }
-                }}
-              >
+              return (
+                <a
+                  key={category.handle}
+                  href={targetUrl}
+                  className="group cursor-pointer block no-underline"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    console.log('🎯 Category clicked:', {
+                      name: category.name,
+                      productType: category.productType,
+                      isIndividualProduct: (category as any).isIndividualProduct,
+                      targetUrl
+                    });
+                    navigateTo(targetUrl);
+                  }}
+                >
                 <div
                   className="aspect-[3/4] bg-white overflow-hidden relative flex flex-col"
                   style={{
@@ -232,8 +234,9 @@ export function CategoryShowcase() {
                     <h3 className="text-lg font-bold text-black">{category.name.toUpperCase()}</h3>
                   </div>
                 </div>
-              </div>
-            ))
+              </a>
+            );
+          })
           ) : (
             <div className="col-span-4 text-center py-8 text-[#3a5a40]">
               Loading categories...

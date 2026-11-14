@@ -40,11 +40,27 @@ export interface AdminProduct {
   why_choose_us?: string | Record<string, WhyChooseUsConfig> | WhyChooseUsConfig;
   custom_slug?: string;
   city_slugs?: string | Record<string, string>;
+  meta_title?: string;
+  meta_description?: string;
+  canonical_url?: string;
   material?: string;
   stock: number;
   featured: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface PageSeo {
+  id: number;
+  page_path: string;
+  page_name: string;
+  meta_title?: string;
+  meta_description?: string;
+  canonical_url?: string;
+  og_image?: string;
+  no_index?: number | boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AdminOrder {

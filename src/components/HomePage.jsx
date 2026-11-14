@@ -14,10 +14,17 @@ import { ContactSection } from "./ContactSection";
 import { Footer } from "./Footer";
 import { useAuth } from '../contexts/AuthContext';
 import { useRouter } from '../utils/Router';
+import { usePageSeo } from '../utils/usePageSeo';
 
 const HomePage = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const { navigateTo } = useRouter();
+
+  usePageSeo('/', {
+    title: 'Nivaran Upcyclers | Handcrafted Sustainable & Eco-Friendly Products',
+    description: 'Discover handcrafted, sustainable, and eco-friendly upcycled products, bags, stationery, home decor, and gifts from Nivaran Upcyclers.',
+    canonical: 'https://www.nivaranupcyclers.com/'
+  });
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -59,7 +66,9 @@ const HomePage = () => {
       </section>
 
       {/* Membership Plans */}
-      <MembershipPlans />
+      <section id="membership">
+        <MembershipPlans />
+      </section>
 
       {/* Split Content Section */}
       <SplitContentSection />

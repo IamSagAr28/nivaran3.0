@@ -189,3 +189,25 @@ export async function changeAdminPassword(currentPassword: string, newPassword: 
     body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
+
+// ---- Page SEO ----
+export async function fetchPublicPageSeo(path?: string) {
+  const qs = path ? `?path=${encodeURIComponent(path)}` : '';
+  return apiFetch(`/api/page-seo${qs}`);
+}
+
+export async function fetchAdminPageSeo() {
+  return apiFetch('/api/admin/page-seo');
+}
+
+export async function createAdminPageSeo(data: Record<string, unknown>) {
+  return apiFetch('/api/admin/page-seo', { method: 'POST', body: JSON.stringify(data) });
+}
+
+export async function updateAdminPageSeo(id: number, data: Record<string, unknown>) {
+  return apiFetch(`/api/admin/page-seo/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export async function deleteAdminPageSeo(id: number) {
+  return apiFetch(`/api/admin/page-seo/${id}`, { method: 'DELETE' });
+}

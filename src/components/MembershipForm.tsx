@@ -32,21 +32,27 @@ export function MembershipForm({ plan, onBack }: { plan: any, onBack: () => void
         try {
             // Price is formatted like "₹1,500". Extract the numeric value.
             const rawPrice = getSelectedPrice().replace(/[^\d]/g, '');
-            const price = parseInt(rawPrice, 10);
+            const price = parseInt(rawPrice, 10) || 1500;
+
+            const planKey = (plan.title || 'membership').toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 12);
+            const stateKey = (selectedState || 'all').toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 8);
 
             // Add Membership to our local shop cart
             addToCart({
-                productId: `membership_${btoa(plan.title).substring(0, 10)}_${btoa(selectedState).substring(0, 5)}`,
-                title: `${plan.title}`,
+                productId: `membership_${planKey}_${stateKey}`,
+                title: `${plan.title} (${selectedState})`,
                 price: price,
-                image: '', // Can be empty or a generic box icon URL
+                image: '/images/logo.png',
                 category: 'Membership',
-                material: `Region: ${selectedState}`,
+                material: `Doorstep pickup in ${selectedState}`,
                 quantity: 1
             });
 
-            // Redirect to Checkout immediately
-            setTimeout(() => navigateTo('/shop-cart'), 100);
+            // Redirect to Cart/Checkout immediately & ensure top scroll
+            setTimeout(() => {
+                navigateTo('/cart');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }, 100);
 
         } catch (error) {
             console.error('Submission error:', error);

@@ -10,6 +10,7 @@ import {
   Ticket,
   FileText,
   Mail,
+  Globe,
 } from 'lucide-react';
 import { useRouter } from '../../utils/Router';
 
@@ -74,6 +75,12 @@ const menuItems = [
     icon: Mail,
     path: '/admin/newsletter',
     id: 'newsletter',
+  },
+  {
+    label: 'SEO & Meta Tags',
+    icon: Globe,
+    path: '/admin/seo',
+    id: 'seo',
   },
 ];
 

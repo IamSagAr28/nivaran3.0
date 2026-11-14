@@ -4,6 +4,17 @@ const bcrypt = require('bcryptjs');
 const db = require('./database');
 const shiprocket = require('./shiprocket');
 const { signAdminToken, verifyAdminToken } = require('./utils/adminToken');
+const { generateSitemapXml } = require('./sitemap-generator');
+
+function triggerSitemapUpdate() {
+  setTimeout(async () => {
+    try {
+      await generateSitemapXml(db);
+    } catch (e) {
+      console.warn('Background sitemap sync warning:', e.message);
+    }
+  }, 100);
+}
 
 // Helper: parse JSON fields
 function parseProduct(p) {
@@ -26,6 +37,9 @@ function parseProduct(p) {
     why_choose_us: typeof p.why_choose_us === 'string' ? JSON.parse(p.why_choose_us || '{}') : (p.why_choose_us || {}),
     custom_slug: p.custom_slug || '',
     city_slugs: typeof p.city_slugs === 'string' ? JSON.parse(p.city_slugs || '{}') : (p.city_slugs || {}),
+    meta_title: p.meta_title || '',
+    meta_description: p.meta_description || '',
+    canonical_url: p.canonical_url || '',
   };
 }
 
@@ -201,7 +215,7 @@ router.get('/products', requireAdmin, async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
     const selectCols = withImages
       ? '*'
-      : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, created_at, updated_at';
+      : 'id, title, description, price, compare_at_price, category, colors, variants, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, meta_title, meta_description, canonical_url, created_at, updated_at';
 
     const rows = await db.allAsync(`SELECT ${selectCols} FROM products ORDER BY created_at DESC`);
     res.json({ products: rows.map(parseProduct) });
@@ -226,7 +240,8 @@ router.post('/products', requireAdmin, async (req, res) => {
   const { 
     title, description, price, compare_at_price, images, category, 
     material, stock, featured, variants, variant_types, city_descriptions,
-    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs
+    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs,
+    meta_title, meta_description, canonical_url
   } = req.body;
 
   if (!title || !price) return res.status(400).json({ error: 'Title and price are required' });
@@ -241,10 +256,13 @@ router.post('/products', requireAdmin, async (req, res) => {
     const whyChooseUsJson = JSON.stringify(safeParseJsonObject(why_choose_us));
     const citySlugsJson = JSON.stringify(safeParseJsonObject(city_slugs));
     const formattedSlug = (custom_slug || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const cleanMetaTitle = (meta_title || '').trim();
+    const cleanMetaDesc = (meta_description || '').trim();
+    const cleanCanonical = (canonical_url || '').trim();
 
     const sql = `INSERT INTO products 
-      (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+      (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, meta_title, meta_description, canonical_url)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const params = [
       title, description || '',
       parseFloat(price),
@@ -260,18 +278,22 @@ router.post('/products', requireAdmin, async (req, res) => {
       cityShowcaseSectionsJson,
       whyChooseUsJson,
       formattedSlug,
-      citySlugsJson
+      citySlugsJson,
+      cleanMetaTitle,
+      cleanMetaDesc,
+      cleanCanonical
     ];
 
     if (process.env.DATABASE_URL) {
       const pgSql = `INSERT INTO products 
-        (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`;
+        (title, description, price, compare_at_price, images, category, material, stock, featured, variants, variant_types, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, meta_title, meta_description, canonical_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`;
       
       try {
         const result = await db.getAsync(pgSql, params);
         const created = parseProduct(result);
         created.images = []; // Keep response small
+        triggerSitemapUpdate();
         return res.status(201).json(created);
       } catch (pgErr) {
         console.error('Postgres INSERT error:', pgErr);
@@ -284,6 +306,7 @@ router.post('/products', requireAdmin, async (req, res) => {
         const newProduct = await db.getAsync('SELECT * FROM products WHERE id = ?', [this.lastID]);
         const created = parseProduct(newProduct);
         created.images = [];
+        triggerSitemapUpdate();
         res.status(201).json(created);
       });
     }
@@ -298,7 +321,8 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
   const { 
     title, description, price, compare_at_price, images, category, 
     material, stock, featured, variants, variant_types, city_descriptions,
-    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs
+    showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs,
+    meta_title, meta_description, canonical_url
   } = req.body;
   const { id } = req.params;
 
@@ -312,6 +336,9 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
     const whyChooseUsJson = JSON.stringify(safeParseJsonObject(why_choose_us));
     const citySlugsJson = JSON.stringify(safeParseJsonObject(city_slugs));
     const formattedSlug = (custom_slug || '').trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const cleanMetaTitle = (meta_title || '').trim();
+    const cleanMetaDesc = (meta_description || '').trim();
+    const cleanCanonical = (canonical_url || '').trim();
 
     const params = [
       title, description || '',
@@ -329,6 +356,9 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
       whyChooseUsJson,
       formattedSlug,
       citySlugsJson,
+      cleanMetaTitle,
+      cleanMetaDesc,
+      cleanCanonical,
       id
     ];
 
@@ -338,12 +368,14 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         title=$1, description=$2, price=$3, compare_at_price=$4, images=$5, 
         category=$6, material=$7, stock=$8, featured=$9, variants=$10, variant_types=$11, city_descriptions=$12, 
         showcase_sections=$13, city_showcase_sections=$14, why_choose_us=$15, custom_slug=$16, city_slugs=$17,
+        meta_title=$18, meta_description=$19, canonical_url=$20,
         updated_at=CURRENT_TIMESTAMP
-        WHERE id=$18 RETURNING id, title, price, category, stock, featured, created_at, updated_at`;
+        WHERE id=$21 RETURNING *`;
       try {
         const result = await db.getAsync(pgSql, params);
         const parsed = parseProduct(result);
         parsed.images = [];
+        triggerSitemapUpdate();
         return res.json(parsed);
       } catch (pgErr) {
         console.error('Postgres UPDATE error:', pgErr);
@@ -355,6 +387,7 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         title=?, description=?, price=?, compare_at_price=?, images=?, 
         category=?, material=?, stock=?, featured=?, variants=?, variant_types=?, city_descriptions=?, 
         showcase_sections=?, city_showcase_sections=?, why_choose_us=?, custom_slug=?, city_slugs=?,
+        meta_title=?, meta_description=?, canonical_url=?,
         updated_at=CURRENT_TIMESTAMP
         WHERE id=?`;
       db.run(sql, params, async function(err) {
@@ -362,6 +395,14 @@ router.put('/products/:id', requireAdmin, async (req, res) => {
         const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
         const parsed = parseProduct(updated);
         parsed.images = [];
+        triggerSitemapUpdate();
+        res.json(parsed);
+      });
+    }
+        const updated = await db.getAsync('SELECT * FROM products WHERE id = ?', [id]);
+        const parsed = parseProduct(updated);
+        parsed.images = [];
+        triggerSitemapUpdate();
         res.json(parsed);
       });
     }
@@ -383,6 +424,7 @@ router.delete('/products/:id', requireAdmin, async (req, res) => {
         });
       });
     }
+    triggerSitemapUpdate();
     res.json({ success: true });
   } catch (err) {
     console.error('DELETE /admin/products error:', err);
@@ -627,6 +669,137 @@ router.post('/change-password', requireAdmin, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// ===================== PAGE SEO ======================
+
+// GET /api/admin/page-seo
+router.get('/page-seo', requireAdmin, async (req, res) => {
+  try {
+    const pages = await db.allAsync('SELECT * FROM page_seo ORDER BY id ASC');
+    res.json({ pages: pages || [] });
+  } catch (err) {
+    console.error('GET /api/admin/page-seo error:', err);
+    res.status(500).json({ error: 'Failed to fetch page SEO entries' });
+  }
+});
+
+// POST /api/admin/page-seo
+router.post('/page-seo', requireAdmin, async (req, res) => {
+  const { page_path, page_name, meta_title, meta_description, canonical_url, og_image, no_index } = req.body;
+  if (!page_path) return res.status(400).json({ error: 'page_path is required' });
+
+  try {
+    const cleanPath = '/' + page_path.trim().replace(/^\/+/, '');
+    const cleanName = (page_name || cleanPath).trim();
+    const cleanTitle = (meta_title || '').trim();
+    const cleanDesc = (meta_description || '').trim();
+    const cleanCanonical = (canonical_url || '').trim();
+    const cleanOgImage = (og_image || '').trim();
+    const cleanNoIndex = no_index ? 1 : 0;
+
+    if (process.env.DATABASE_URL) {
+      const pgSql = `
+        INSERT INTO page_seo (page_path, page_name, meta_title, meta_description, canonical_url, og_image, no_index)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (page_path) DO UPDATE SET
+          page_name = EXCLUDED.page_name,
+          meta_title = EXCLUDED.meta_title,
+          meta_description = EXCLUDED.meta_description,
+          canonical_url = EXCLUDED.canonical_url,
+          og_image = EXCLUDED.og_image,
+          no_index = EXCLUDED.no_index,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING *`;
+      const result = await db.getAsync(pgSql, [cleanPath, cleanName, cleanTitle, cleanDesc, cleanCanonical, cleanOgImage, cleanNoIndex]);
+      triggerSitemapUpdate();
+      return res.status(201).json(result);
+    } else {
+      const sqliteSql = `
+        INSERT INTO page_seo (page_path, page_name, meta_title, meta_description, canonical_url, og_image, no_index)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(page_path) DO UPDATE SET
+          page_name = excluded.page_name,
+          meta_title = excluded.meta_title,
+          meta_description = excluded.meta_description,
+          canonical_url = excluded.canonical_url,
+          og_image = excluded.og_image,
+          no_index = excluded.no_index,
+          updated_at = CURRENT_TIMESTAMP`;
+      await db.runAsync(sqliteSql, [cleanPath, cleanName, cleanTitle, cleanDesc, cleanCanonical, cleanOgImage, cleanNoIndex]);
+      const saved = await db.getAsync('SELECT * FROM page_seo WHERE page_path = ?', [cleanPath]);
+      triggerSitemapUpdate();
+      return res.status(201).json(saved);
+    }
+  } catch (err) {
+    console.error('POST /api/admin/page-seo error:', err);
+    res.status(500).json({ error: 'Failed to save page SEO entry', detail: err.message });
+  }
+});
+
+// PUT /api/admin/page-seo/:id
+router.put('/page-seo/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { page_path, page_name, meta_title, meta_description, canonical_url, og_image, no_index } = req.body;
+
+  try {
+    const cleanPath = page_path ? '/' + page_path.trim().replace(/^\/+/, '') : undefined;
+    const cleanName = page_name !== undefined ? page_name.trim() : undefined;
+    const cleanTitle = meta_title !== undefined ? meta_title.trim() : '';
+    const cleanDesc = meta_description !== undefined ? meta_description.trim() : '';
+    const cleanCanonical = canonical_url !== undefined ? canonical_url.trim() : '';
+    const cleanOgImage = og_image !== undefined ? og_image.trim() : '';
+    const cleanNoIndex = no_index ? 1 : 0;
+
+    if (process.env.DATABASE_URL) {
+      const pgSql = `
+        UPDATE page_seo SET
+          page_path = COALESCE($1, page_path),
+          page_name = COALESCE($2, page_name),
+          meta_title = $3,
+          meta_description = $4,
+          canonical_url = $5,
+          og_image = $6,
+          no_index = $7,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $8
+        RETURNING *`;
+      const result = await db.getAsync(pgSql, [cleanPath, cleanName, cleanTitle, cleanDesc, cleanCanonical, cleanOgImage, cleanNoIndex, id]);
+      triggerSitemapUpdate();
+      return res.json(result);
+    } else {
+      const sqliteSql = `
+        UPDATE page_seo SET
+          page_path = COALESCE(?, page_path),
+          page_name = COALESCE(?, page_name),
+          meta_title = ?,
+          meta_description = ?,
+          canonical_url = ?,
+          og_image = ?,
+          no_index = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`;
+      await db.runAsync(sqliteSql, [cleanPath, cleanName, cleanTitle, cleanDesc, cleanCanonical, cleanOgImage, cleanNoIndex, id]);
+      const updated = await db.getAsync('SELECT * FROM page_seo WHERE id = ?', [id]);
+      triggerSitemapUpdate();
+      return res.json(updated);
+    }
+  } catch (err) {
+    console.error('PUT /api/admin/page-seo/:id error:', err);
+    res.status(500).json({ error: 'Failed to update page SEO entry', detail: err.message });
+  }
+});
+
+// DELETE /api/admin/page-seo/:id
+router.delete('/page-seo/:id', requireAdmin, async (req, res) => {
+  try {
+    await db.runAsync('DELETE FROM page_seo WHERE id = ?', [req.params.id]);
+    triggerSitemapUpdate();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('DELETE /api/admin/page-seo/:id error:', err);
+    res.status(500).json({ error: 'Failed to delete page SEO entry' });
   }
 });
 

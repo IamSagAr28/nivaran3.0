@@ -243,6 +243,32 @@ function initPgDb() {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS why_choose_us TEXT DEFAULT '{}';
         ALTER TABLE products ADD COLUMN IF NOT EXISTS custom_slug TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS city_slugs TEXT DEFAULT '{}';
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_title TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description TEXT;
+        ALTER TABLE products ADD COLUMN IF NOT EXISTS canonical_url TEXT;
+
+        CREATE TABLE IF NOT EXISTS page_seo (
+          id SERIAL PRIMARY KEY,
+          page_path TEXT UNIQUE NOT NULL,
+          page_name TEXT NOT NULL,
+          meta_title TEXT,
+          meta_description TEXT,
+          canonical_url TEXT,
+          og_image TEXT,
+          no_index INTEGER DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        INSERT INTO page_seo (page_path, page_name) VALUES
+          ('/', 'Home Page'),
+          ('/products', 'Shop / All Products'),
+          ('/cart', 'Shopping Cart'),
+          ('/membership', 'Annual Membership'),
+          ('/privacy-policy', 'Privacy Policy'),
+          ('/terms-of-service', 'Terms of Service'),
+          ('/shipping-policy', 'Shipping Policy')
+        ON CONFLICT (page_path) DO NOTHING;
       `;
       return db.query(alterProducts);
     })
@@ -375,8 +401,44 @@ function initSqliteDb() {
             if (!cols.some(c => c.name === 'city_slugs')) {
               db.run("ALTER TABLE products ADD COLUMN city_slugs TEXT DEFAULT '{}'");
             }
+            if (!cols.some(c => c.name === 'meta_title')) {
+              db.run("ALTER TABLE products ADD COLUMN meta_title TEXT");
+            }
+            if (!cols.some(c => c.name === 'meta_description')) {
+              db.run("ALTER TABLE products ADD COLUMN meta_description TEXT");
+            }
+            if (!cols.some(c => c.name === 'canonical_url')) {
+              db.run("ALTER TABLE products ADD COLUMN canonical_url TEXT");
+            }
           }
         });
+
+        db.run(`CREATE TABLE IF NOT EXISTS page_seo (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          page_path TEXT UNIQUE NOT NULL,
+          page_name TEXT NOT NULL,
+          meta_title TEXT,
+          meta_description TEXT,
+          canonical_url TEXT,
+          og_image TEXT,
+          no_index INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`, () => {
+          const defaultPages = [
+            ['/', 'Home Page'],
+            ['/products', 'Shop / All Products'],
+            ['/cart', 'Shopping Cart'],
+            ['/membership', 'Annual Membership'],
+            ['/privacy-policy', 'Privacy Policy'],
+            ['/terms-of-service', 'Terms of Service'],
+            ['/shipping-policy', 'Shipping Policy']
+          ];
+          defaultPages.forEach(([path, name]) => {
+            db.run(`INSERT OR IGNORE INTO page_seo (page_path, page_name) VALUES (?, ?)`, [path, name]);
+          });
+        });
+
         seedAdminUser();
       }
     });

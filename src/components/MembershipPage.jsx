@@ -2,8 +2,15 @@ import React from 'react';
 import { Header } from './Header';
 import { Footer } from './Footer';
 import { MembershipPlans } from './MembershipPlans';
+import { usePageSeo } from '../utils/usePageSeo';
 
 const MembershipPage = () => {
+  usePageSeo('/membership', {
+    title: 'Annual Membership Plans | Nivaran Upcyclers',
+    description: 'Join the Nivaran Upcyclers membership community for exclusive eco-friendly gifts, quarterly green rewards, and workshop discounts.',
+    canonical: 'https://www.nivaranupcyclers.com/membership'
+  });
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />

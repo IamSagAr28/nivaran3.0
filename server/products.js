@@ -23,6 +23,9 @@ function parseProduct(p) {
     why_choose_us: typeof p.why_choose_us === 'string' ? JSON.parse(p.why_choose_us || '{}') : (p.why_choose_us || {}),
     custom_slug: p.custom_slug || '',
     city_slugs: typeof p.city_slugs === 'string' ? JSON.parse(p.city_slugs || '{}') : (p.city_slugs || {}),
+    meta_title: p.meta_title || '',
+    meta_description: p.meta_description || '',
+    canonical_url: p.canonical_url || '',
   };
 }
 
@@ -33,7 +36,7 @@ router.get('/', async (req, res) => {
     const withImages = includeImages === '1' || includeImages === 'true';
       const selectCols = withImages
         ? '*'
-        : 'id, title, description, price, compare_at_price, category, colors, variants, variant_types, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, created_at, updated_at';
+        : 'id, title, description, price, compare_at_price, category, colors, variants, variant_types, material, stock, featured, city_descriptions, showcase_sections, city_showcase_sections, why_choose_us, custom_slug, city_slugs, meta_title, meta_description, canonical_url, created_at, updated_at';
 
     let sql = `SELECT ${selectCols} FROM products WHERE 1=1`;
     const params = [];
@@ -177,10 +180,26 @@ router.get('/:id', async (req, res) => {
 
     // 5. Exact city_slugs match inside JSON
     product = await db.getAsync(
-      'SELECT * FROM products WHERE city_slugs LIKE ? OR city_slugs LIKE ?',
+      'SELECT * FROM products WHERE LOWER(city_slugs) LIKE ? OR LOWER(city_slugs) LIKE ?',
       [`%"${param.toLowerCase()}"%`, `%"${stripped}"%`]
     );
     if (product) return res.json(parseProduct(product));
+
+    // 5b. In-memory check over city_slugs JSON for flexible matching
+    const slugRows = await db.allAsync('SELECT * FROM products WHERE city_slugs IS NOT NULL AND city_slugs != \'\' AND city_slugs != \'{}\'');
+    const matchedSlugRow = slugRows.find(r => {
+      try {
+        const map = typeof r.city_slugs === 'string' ? JSON.parse(r.city_slugs || '{}') : (r.city_slugs || {});
+        return Object.values(map).some(v => {
+          if (typeof v !== 'string') return false;
+          const cleanV = v.trim().toLowerCase().replace(/^\/+/, '');
+          return cleanV === param.toLowerCase() || cleanV === stripped;
+        });
+      } catch {
+        return false;
+      }
+    });
+    if (matchedSlugRow) return res.json(parseProduct(matchedSlugRow));
 
     // 6. EXACT normalized title match (e.g. title "Jute bag" matches "jute-bag" or "jute bag")
     const cleanSlug = stripped.replace(/[^a-z0-9]+/g, ' ').trim();

@@ -4,6 +4,8 @@ import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
 import { apiUrl, fetchProducts, fetchCategories } from '../../utils/shopApi'
+import { categoryToSlug, getCategoryUrl, slugToCategory } from '../../utils/categorySlug'
+import { getCachedPageSeo } from '../../utils/usePageSeo'
 import { Share2 } from 'lucide-react'
 import ShareProductModal, { ShareProduct } from './ShareProductModal'
 
@@ -59,7 +61,13 @@ function getProductDetailUrl(p: Product) {
   return `/product/${p.id}`;
 }
 
-export default function ShopPage() {
+interface ShopPageProps {
+  params?: {
+    category?: string
+  }
+}
+
+export default function ShopPage({ params }: ShopPageProps = {}) {
   const { addToCart } = useShopCart()
   const { navigateTo } = useRouter()
 
@@ -77,11 +85,52 @@ export default function ShopPage() {
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set())
   const [shareProduct, setShareProduct] = useState<ShareProduct | null>(null)
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const cat = params.get('category')
-    if (cat) setSelectedCategory(decodeURIComponent(cat))
+  // Deduplicated list of categories for filter sidebar
+  const displayCategories = useMemo(() => {
+    const seen = new Set<string>()
+    const list: string[] = ['All']
+    categories.forEach(c => {
+      const trimmed = (c || '').trim()
+      if (!trimmed || trimmed.toLowerCase() === 'all') return
+      const slug = categoryToSlug(trimmed)
+      if (!seen.has(slug)) {
+        seen.add(slug)
+        list.push(trimmed)
+      }
+    })
+    return list
+  }, [categories])
 
+  // Sync selected category with URL (route param, search query, or pathname)
+  useEffect(() => {
+    const routeCategoryParam = params?.category || ''
+    const pathSegments = window.location.pathname.split('/').filter(Boolean)
+    const pathSlug = pathSegments[0] === 'products' && pathSegments[1] ? pathSegments[1] : ''
+    const effectiveSlug = routeCategoryParam || pathSlug
+
+    const searchParams = new URLSearchParams(window.location.search)
+    const searchCat = searchParams.get('category')
+
+    if (effectiveSlug) {
+      const matched = slugToCategory(effectiveSlug, categories)
+      setSelectedCategory(matched)
+    } else if (searchCat) {
+      const matched = slugToCategory(categoryToSlug(searchCat), categories)
+      setSelectedCategory(matched)
+      // Clean up URL in address bar to /products/<slug> without full reload
+      if (matched && matched !== 'All') {
+        const cleanUrl = getCategoryUrl(matched)
+        if (window.location.pathname + window.location.search !== cleanUrl) {
+          window.history.replaceState(null, '', cleanUrl)
+        }
+      }
+    } else {
+      setSelectedCategory('All')
+    }
+  }, [params?.category, categories])
+
+  // Initial products & categories fetch
+  useEffect(() => {
     Promise.all([fetchProducts(), fetchCategories()])
       .then(([productsData, categoriesData]) => {
         setProducts(productsData.products || [])
@@ -90,6 +139,121 @@ export default function ShopPage() {
       .catch(() => setError('Failed to load products. Please try again.'))
       .finally(() => setLoading(false))
   }, [])
+
+  // Dynamic SEO Meta Tags & Schema for Shop Page & Categories
+  useEffect(() => {
+    const isCategorySelected = selectedCategory && selectedCategory !== 'All'
+    const originalTitle = document.title
+    const currentPath = isCategorySelected ? getCategoryUrl(selectedCategory) : '/products'
+
+    // Title
+    const newTitle = isCategorySelected
+      ? `${selectedCategory} | Sustainable Upcycled Products | Nivaran`
+      : 'Shop Sustainable Upcycled Products | Nivaran'
+    document.title = newTitle
+
+    // Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]')
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta')
+      metaDesc.setAttribute('name', 'description')
+      document.head.appendChild(metaDesc)
+    }
+    const prevDesc = metaDesc.getAttribute('content')
+    const newDesc = isCategorySelected
+      ? `Explore handcrafted, eco-friendly ${selectedCategory.toLowerCase()} made from upcycled materials. 100% sustainable, zero-waste products by Nivaran Upcyclers.`
+      : 'Browse modern upcycled eco-friendly products, sustainable bags, handmade stationery, and home decor by Nivaran Upcyclers.'
+    metaDesc.setAttribute('content', newDesc)
+
+    // Canonical link
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null
+    if (!canonical) {
+      canonical = document.createElement('link')
+      canonical.setAttribute('rel', 'canonical')
+      document.head.appendChild(canonical)
+    }
+    const prevCanonical = canonical.getAttribute('href')
+    const canonicalUrl = isCategorySelected
+      ? `https://www.nivaranupcyclers.com${getCategoryUrl(selectedCategory)}`
+      : 'https://www.nivaranupcyclers.com/products'
+    canonical.setAttribute('href', canonicalUrl)
+
+    // Apply custom page SEO if configured by SEO team in admin panel
+    let isMounted = true
+    getCachedPageSeo().then(map => {
+      if (!isMounted) return
+      const custom = map[currentPath.toLowerCase()] || map['/products']
+      if (custom) {
+        if (custom.meta_title && custom.meta_title.trim()) document.title = custom.meta_title.trim()
+        if (custom.meta_description && custom.meta_description.trim()) metaDesc?.setAttribute('content', custom.meta_description.trim())
+        if (custom.canonical_url && custom.canonical_url.trim()) canonical?.setAttribute('href', custom.canonical_url.trim())
+      }
+    })
+
+    // Structured Data (JSON-LD)
+    const scriptId = 'category-jsonld-schema'
+    let scriptTag = document.getElementById(scriptId) as HTMLScriptElement | null
+    if (!scriptTag) {
+      scriptTag = document.createElement('script')
+      scriptTag.id = scriptId
+      scriptTag.type = 'application/ld+json'
+      document.head.appendChild(scriptTag)
+    }
+
+    const schemaData = {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: newTitle,
+      url: canonicalUrl,
+      description: newDesc,
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: 'https://www.nivaranupcyclers.com/'
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: 'Shop',
+            item: 'https://www.nivaranupcyclers.com/products'
+          },
+          ...(isCategorySelected
+            ? [
+                {
+                  '@type': 'ListItem',
+                  position: 3,
+                  name: selectedCategory,
+                  item: canonicalUrl
+                }
+              ]
+            : [])
+        ]
+      }
+    }
+    scriptTag.textContent = JSON.stringify(schemaData)
+
+    return () => {
+      document.title = originalTitle
+      if (prevDesc) metaDesc?.setAttribute('content', prevDesc)
+      if (prevCanonical) canonical?.setAttribute('href', prevCanonical)
+      const existingScript = document.getElementById(scriptId)
+      if (existingScript) existingScript.remove()
+    }
+  }, [selectedCategory])
+
+  const handleCategorySelect = (cat: string) => {
+    if (cat === 'All' || cat === selectedCategory || (cat !== 'All' && selectedCategory !== 'All' && categoryToSlug(cat) === categoryToSlug(selectedCategory))) {
+      setSelectedCategory('All')
+      navigateTo('/products')
+    } else {
+      setSelectedCategory(cat)
+      navigateTo(getCategoryUrl(cat))
+    }
+  }
 
   const maxProductPrice = useMemo(() =>
     products.length > 0 ? Math.max(...products.map(p => p.price)) : 10000, [products])
@@ -100,7 +264,10 @@ export default function ShopPage() {
 
   const filtered = useMemo(() => {
     let list = [...products]
-    if (selectedCategory !== 'All') list = list.filter(p => p.category === selectedCategory)
+    if (selectedCategory !== 'All') {
+      const selectedSlug = categoryToSlug(selectedCategory)
+      list = list.filter(p => p.category === selectedCategory || categoryToSlug(p.category) === selectedSlug)
+    }
     if (search) {
       const q = search.toLowerCase()
       list = list.filter(p =>
@@ -158,8 +325,8 @@ export default function ShopPage() {
           <div className="hero-content">
             <div>
               <p className="hero-kicker">NIVARAN UPCYCLERS</p>
-              <h1 className="hero-title">Shop Products</h1>
-              <p className="hero-sub">Modern upcycled essentials, crafted by artisans.</p>
+              <h1 className="hero-title">{selectedCategory !== 'All' ? selectedCategory : 'Shop Products'}</h1>
+              <p className="hero-sub">{selectedCategory !== 'All' ? `Explore handcrafted eco-friendly ${selectedCategory.toLowerCase()}.` : 'Modern upcycled essentials, crafted by artisans.'}</p>
             </div>
             <div className="hero-pill">Free shipping above ₹999</div>
           </div>
@@ -185,12 +352,15 @@ export default function ShopPage() {
               <div className="filter-block">
                 <div className="filter-heading">Product Type</div>
                 <div className="filter-list">
-                  {categories.map(cat => (
+                  {displayCategories.map(cat => (
                     <label key={cat} className="filter-item">
                       <input
                         type="checkbox"
-                        checked={selectedCategory === cat}
-                        onChange={() => setSelectedCategory(selectedCategory === cat ? 'All' : cat)}
+                        checked={
+                          (cat === 'All' && selectedCategory === 'All') ||
+                          (cat !== 'All' && selectedCategory !== 'All' && (selectedCategory === cat || categoryToSlug(cat) === categoryToSlug(selectedCategory)))
+                        }
+                        onChange={() => handleCategorySelect(cat)}
                       />
                       <span>{cat}</span>
                     </label>
@@ -256,7 +426,14 @@ export default function ShopPage() {
               <div className="filter-actions">
                 <button className="filter-apply">Apply Filters</button>
                 <button
-                  onClick={() => { setSearch(''); setSelectedCategory('All'); setMinPrice(0); setMaxPrice(maxProductPrice); setStockFilter('all'); }}
+                  onClick={() => {
+                    setSearch('');
+                    setSelectedCategory('All');
+                    setMinPrice(0);
+                    setMaxPrice(maxProductPrice);
+                    setStockFilter('all');
+                    navigateTo('/products');
+                  }}
                   className="filter-clear"
                 >
                   Clear All

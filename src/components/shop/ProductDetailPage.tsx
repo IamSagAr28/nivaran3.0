@@ -4,6 +4,7 @@ import { Footer } from '../Footer'
 import { useShopCart } from '../../contexts/ShopCartContext'
 import { useRouter } from '../../utils/Router'
 import { apiUrl, fetchProductById } from '../../utils/shopApi'
+import { getCategoryUrl } from '../../utils/categorySlug'
 import { 
   ShoppingCart, Star, Package, Leaf, Truck, RefreshCw, ChevronLeft, ChevronRight, 
   MapPin, CheckCircle2, Heart, Shield, Award, Sparkles, Check, Share2 
@@ -85,6 +86,9 @@ interface Product {
   material: string
   stock: number
   featured: number
+  meta_title?: string
+  meta_description?: string
+  canonical_url?: string
   created_at?: string
 }
 
@@ -207,7 +211,12 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
     if (!product) return;
     const originalTitle = document.title;
     const citySuffix = selectedCity ? ` in ${selectedCity}` : '';
-    document.title = `${product.title}${citySuffix} | Eco-Friendly Upcycled Products | Nivaran`;
+    const defaultTitle = `${product.title}${citySuffix} | Eco-Friendly Upcycled Products | Nivaran`;
+    
+    // Custom Meta Title from admin if configured, otherwise automatic default
+    document.title = (product.meta_title && product.meta_title.trim())
+      ? product.meta_title.trim()
+      : defaultTitle;
 
     // Meta description update
     let metaDesc = document.querySelector('meta[name="description"]');
@@ -217,10 +226,15 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
       document.head.appendChild(metaDesc);
     }
     const oldDesc = metaDesc.getAttribute('content');
-    const newDesc = selectedCity
+    const defaultDesc = selectedCity
       ? `Buy ${product.title} in ${selectedCity}. 100% sustainable, handmade upcycled eco-friendly products delivered across ${selectedCity} with fast shipping by Nivaran.`
       : (product.description || `Discover ${product.title} - eco-friendly handcrafted sustainable creations from Nivaran.`);
-    metaDesc.setAttribute('content', newDesc);
+    
+    // Custom Meta Description from admin if configured, otherwise automatic default
+    const effectiveDesc = (product.meta_description && product.meta_description.trim())
+      ? product.meta_description.trim()
+      : defaultDesc;
+    metaDesc.setAttribute('content', effectiveDesc);
 
     // Canonical link update
     let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
@@ -229,7 +243,12 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
       canonical.setAttribute('rel', 'canonical');
       document.head.appendChild(canonical);
     }
-    canonical.setAttribute('href', window.location.href.split('?')[0]);
+    // Custom Canonical URL from admin if configured, otherwise automatic default
+    const defaultCanonical = window.location.href.split('?')[0];
+    const effectiveCanonical = (product.canonical_url && product.canonical_url.trim())
+      ? product.canonical_url.trim()
+      : defaultCanonical;
+    canonical.setAttribute('href', effectiveCanonical);
 
     // JSON-LD Schema markup for Google Rich Snippets
     let schemaScript = document.getElementById('product-schema-jsonld') as HTMLScriptElement | null;
@@ -519,7 +538,7 @@ export default function ProductDetailPage({ params }: { params?: { id?: string; 
           <span className="breadcrumb-separator">/</span>
           <button onClick={() => navigateTo('/products')} className="breadcrumb-item">Shop</button>
           <span className="breadcrumb-separator">/</span>
-          <button onClick={() => navigateTo(`/products?category=${encodeURIComponent(product.category)}`)} className="breadcrumb-item">{product.category}</button>
+          <a href={getCategoryUrl(product.category)} onClick={(e) => { e.preventDefault(); navigateTo(getCategoryUrl(product.category)); }} className="breadcrumb-item">{product.category}</a>
           <span className="breadcrumb-separator">/</span>
           <span className="breadcrumb-current">{product.title}</span>
         </nav>
