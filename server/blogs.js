@@ -32,6 +32,9 @@ async function ensureBlogsTable() {
         current_author TEXT DEFAULT 'Nivaran',
         excerpt TEXT,
         content TEXT NOT NULL,
+        meta_title TEXT,
+        meta_description TEXT,
+        canonical_url TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -48,6 +51,9 @@ async function ensureBlogsTable() {
           current_author TEXT DEFAULT 'Nivaran',
           excerpt TEXT,
           content TEXT NOT NULL,
+          meta_title TEXT,
+          meta_description TEXT,
+          canonical_url TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -57,17 +63,35 @@ async function ensureBlogsTable() {
       console.error('Failed to ensure blogs table:', e2);
     }
   }
+
+  // Ensure new SEO columns exist on pre-existing tables
+  const colsToAdd = ['meta_title', 'meta_description', 'canonical_url'];
+  for (const col of colsToAdd) {
+    try {
+      await db.runAsync(`ALTER TABLE blogs ADD COLUMN IF NOT EXISTS ${col} TEXT`);
+    } catch (errPg) {
+      try {
+        await db.runAsync(`ALTER TABLE blogs ADD COLUMN ${col} TEXT`);
+      } catch (errSqlite) {
+        // column already exists
+      }
+    }
+  }
 }
 
 function formatBlog(row) {
   return {
     id: 'gid://shopify/Article/' + row.id,
+    numericId: row.id,
     title: row.title,
     handle: row.handle,
     publishedAt: row.created_at,
     excerpt: row.excerpt || '',
     content: row.content || '',
     contentHtml: row.content || '',
+    meta_title: row.meta_title || '',
+    meta_description: row.meta_description || '',
+    canonical_url: row.canonical_url || '',
     image: row.image_url ? { url: row.image_url, altText: row.image_alt || row.title } : undefined,
     authorV2: { name: row.current_author || 'Nivaran' },
     blog: { handle: 'news', title: 'News' },
@@ -171,14 +195,28 @@ router.get('/admin', requireAdmin, async (req, res) => {
 // Admin: create
 router.post('/admin', requireAdmin, async (req, res) => {
   try {
-    const { title, handle, image_url, image_alt, current_author, excerpt, content } = req.body;
+    const { title, handle, image_url, image_alt, current_author, excerpt, content, meta_title, meta_description, canonical_url } = req.body;
     if (!title || !handle || !content) {
       return res.status(400).json({ error: 'title, handle, and content are required' });
     }
 
+    const cleanHandle = String(handle).trim().toLowerCase();
+    const cleanCanonical = canonical_url ? String(canonical_url).trim() : `https://www.nivaranupcyclers.com/blogs/news/${cleanHandle}`;
+
     const result = await db.runAsync(
-      'INSERT INTO blogs (title, handle, image_url, image_alt, current_author, excerpt, content) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [title, handle, image_url || null, image_alt || null, current_author || 'Nivaran', excerpt || '', content]
+      'INSERT INTO blogs (title, handle, image_url, image_alt, current_author, excerpt, content, meta_title, meta_description, canonical_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        title.trim(),
+        cleanHandle,
+        image_url || null,
+        image_alt || null,
+        current_author || 'Nivaran',
+        excerpt || '',
+        content,
+        meta_title ? String(meta_title).trim() : null,
+        meta_description ? String(meta_description).trim() : null,
+        cleanCanonical
+      ]
     );
     return res.status(201).json({ success: true, id: result?.lastID });
   } catch (err) {
@@ -189,12 +227,27 @@ router.post('/admin', requireAdmin, async (req, res) => {
 // Admin: update
 router.put('/admin/:id', requireAdmin, async (req, res) => {
   try {
-    const { title, handle, image_url, image_alt, current_author, excerpt, content } = req.body;
+    const { title, handle, image_url, image_alt, current_author, excerpt, content, meta_title, meta_description, canonical_url } = req.body;
     const { id } = req.params;
 
+    const cleanHandle = String(handle).trim().toLowerCase();
+    const cleanCanonical = canonical_url ? String(canonical_url).trim() : `https://www.nivaranupcyclers.com/blogs/news/${cleanHandle}`;
+
     await db.runAsync(
-      'UPDATE blogs SET title=?, handle=?, image_url=?, image_alt=?, current_author=?, excerpt=?, content=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
-      [title, handle, image_url || null, image_alt || null, current_author || 'Nivaran', excerpt || '', content, id]
+      'UPDATE blogs SET title=?, handle=?, image_url=?, image_alt=?, current_author=?, excerpt=?, content=?, meta_title=?, meta_description=?, canonical_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',
+      [
+        title.trim(),
+        cleanHandle,
+        image_url || null,
+        image_alt || null,
+        current_author || 'Nivaran',
+        excerpt || '',
+        content,
+        meta_title ? String(meta_title).trim() : null,
+        meta_description ? String(meta_description).trim() : null,
+        cleanCanonical,
+        id
+      ]
     );
     return res.json({ success: true });
   } catch (err) {

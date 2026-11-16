@@ -34,7 +34,7 @@ async function generateSitemapXml(db) {
     console.warn('Sitemap DB query warning (products):', e.message);
   }
   try {
-    blogs = await db.allAsync('SELECT blog_handle, article_handle, updated_at FROM blogs', []);
+    blogs = await db.allAsync('SELECT id, handle, updated_at, canonical_url FROM blogs ORDER BY id DESC', []);
   } catch (e) {
     console.warn('Sitemap DB query warning (blogs):', e.message);
   }
@@ -114,9 +114,11 @@ async function generateSitemapXml(db) {
   // 3. Blogs
   if (Array.isArray(blogs)) {
     blogs.forEach(b => {
-      if (b.blog_handle && b.article_handle) {
+      const handle = b.handle || b.article_handle;
+      if (handle) {
         const lastmod = b.updated_at ? new Date(b.updated_at).toISOString().split('T')[0] : currentDate;
-        addUrl(`${baseUrl}/blogs/${b.blog_handle}/${b.article_handle}`, '0.7', 'weekly', lastmod);
+        const targetUrl = b.canonical_url ? b.canonical_url : `${baseUrl}/blogs/news/${handle}`;
+        addUrl(targetUrl, '0.7', 'weekly', lastmod);
       }
     });
   }

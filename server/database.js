@@ -247,6 +247,10 @@ function initPgDb() {
         ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description TEXT;
         ALTER TABLE products ADD COLUMN IF NOT EXISTS canonical_url TEXT;
 
+        ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_title TEXT;
+        ALTER TABLE blogs ADD COLUMN IF NOT EXISTS meta_description TEXT;
+        ALTER TABLE blogs ADD COLUMN IF NOT EXISTS canonical_url TEXT;
+
         CREATE TABLE IF NOT EXISTS page_seo (
           id SERIAL PRIMARY KEY,
           page_path TEXT UNIQUE NOT NULL,
