@@ -192,6 +192,20 @@ router.get('/admin', requireAdmin, async (req, res) => {
   }
 });
 
+function normalizeCanonicalUrl(rawCanonical, handle) {
+  const defaultUrl = `https://www.nivaranupcyclers.com/blogs/news/${handle}`;
+  if (!rawCanonical || typeof rawCanonical !== 'string') return defaultUrl;
+  const trimmed = rawCanonical.trim();
+  if (!trimmed) return defaultUrl;
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/')) {
+    return `https://www.nivaranupcyclers.com${trimmed}`;
+  }
+  return `https://www.nivaranupcyclers.com/blogs/news/${trimmed}`;
+}
+
 // Admin: create
 router.post('/admin', requireAdmin, async (req, res) => {
   try {
@@ -201,7 +215,7 @@ router.post('/admin', requireAdmin, async (req, res) => {
     }
 
     const cleanHandle = String(handle).trim().toLowerCase();
-    const cleanCanonical = canonical_url ? String(canonical_url).trim() : `https://www.nivaranupcyclers.com/blogs/news/${cleanHandle}`;
+    const cleanCanonical = normalizeCanonicalUrl(canonical_url, cleanHandle);
 
     const result = await db.runAsync(
       'INSERT INTO blogs (title, handle, image_url, image_alt, current_author, excerpt, content, meta_title, meta_description, canonical_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
@@ -231,7 +245,7 @@ router.put('/admin/:id', requireAdmin, async (req, res) => {
     const { id } = req.params;
 
     const cleanHandle = String(handle).trim().toLowerCase();
-    const cleanCanonical = canonical_url ? String(canonical_url).trim() : `https://www.nivaranupcyclers.com/blogs/news/${cleanHandle}`;
+    const cleanCanonical = normalizeCanonicalUrl(canonical_url, cleanHandle);
 
     await db.runAsync(
       'UPDATE blogs SET title=?, handle=?, image_url=?, image_alt=?, current_author=?, excerpt=?, content=?, meta_title=?, meta_description=?, canonical_url=?, updated_at=CURRENT_TIMESTAMP WHERE id=?',

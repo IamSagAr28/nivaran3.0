@@ -214,6 +214,16 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
 
       const handle = (form.handle || slugify(title)).trim();
       const defaultCanonical = `https://www.nivaranupcyclers.com/blogs/news/${handle}`;
+      let finalCanonical = form.canonical_url.trim();
+      if (!finalCanonical) {
+        finalCanonical = defaultCanonical;
+      } else if (!/^https?:\/\//i.test(finalCanonical)) {
+        if (finalCanonical.startsWith('/')) {
+          finalCanonical = `https://www.nivaranupcyclers.com${finalCanonical}`;
+        } else {
+          finalCanonical = `https://www.nivaranupcyclers.com/blogs/news/${finalCanonical}`;
+        }
+      }
 
       const payload = {
         ...form,
@@ -222,7 +232,7 @@ export default function BlogsAdmin({ onLogout }: { onLogout: () => void }) {
         handle,
         meta_title: form.meta_title.trim() || `${title} | Nivaran Upcyclers Blog`,
         meta_description: form.meta_description.trim() || (form.excerpt || content.replace(/<[^>]*>/g, '').slice(0, 155)),
-        canonical_url: form.canonical_url.trim() || defaultCanonical,
+        canonical_url: finalCanonical,
       };
 
       const isEdit = editingId != null;

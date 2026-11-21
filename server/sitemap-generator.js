@@ -112,12 +112,36 @@ async function generateSitemapXml(db) {
   }
 
   // 3. Blogs
+  function sanitizeBlogCanonical(rawCanonical, handle) {
+    const cleanHandle = String(handle).trim();
+    const defaultUrl = `${baseUrl}/blogs/news/${encodeURIComponent(cleanHandle)}`;
+    if (!rawCanonical || typeof rawCanonical !== 'string') return defaultUrl;
+    const trimmed = rawCanonical.trim();
+    if (!trimmed) return defaultUrl;
+    if (/^https?:\/\//i.test(trimmed)) {
+      return trimmed.replace(/https?:\/\/(www\.)?nivaranupcyclers\.com/, baseUrl);
+    }
+    if (trimmed.startsWith('/')) {
+      return `${baseUrl}${trimmed}`;
+    }
+    return `${baseUrl}/blogs/news/${encodeURIComponent(trimmed)}`;
+  }
+
+  // Always ensure key published blog URLs are included in current and future sitemaps
+  const guaranteedBlogs = [
+    'pooja-waste-disposal-collection-services-in-india',
+    'pooja-waste-disposal-in-kanpur'
+  ];
+  guaranteedBlogs.forEach(h => {
+    addUrl(`${baseUrl}/blogs/news/${h}`, '0.7', 'weekly', currentDate);
+  });
+
   if (Array.isArray(blogs)) {
     blogs.forEach(b => {
       const handle = b.handle || b.article_handle;
       if (handle) {
         const lastmod = b.updated_at ? new Date(b.updated_at).toISOString().split('T')[0] : currentDate;
-        const targetUrl = b.canonical_url ? b.canonical_url : `${baseUrl}/blogs/news/${handle}`;
+        const targetUrl = sanitizeBlogCanonical(b.canonical_url, handle);
         addUrl(targetUrl, '0.7', 'weekly', lastmod);
       }
     });

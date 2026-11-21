@@ -81,9 +81,17 @@ const BlogPostPage: React.FC<BlogPostPageProps> = ({ params }) => {
         }
         const oldCanonical = canonical.getAttribute('href');
         const defaultCanonical = `https://www.nivaranupcyclers.com/blogs/news/${article.handle || articleHandle}`;
-        const effectiveCanonical = (article.canonical_url && article.canonical_url.trim())
-            ? article.canonical_url.trim()
-            : defaultCanonical;
+        let effectiveCanonical = defaultCanonical;
+        if (article.canonical_url && article.canonical_url.trim()) {
+            const raw = article.canonical_url.trim();
+            if (/^https?:\/\//i.test(raw)) {
+                effectiveCanonical = raw;
+            } else if (raw.startsWith('/')) {
+                effectiveCanonical = `https://www.nivaranupcyclers.com${raw}`;
+            } else {
+                effectiveCanonical = `https://www.nivaranupcyclers.com/blogs/news/${raw}`;
+            }
+        }
         canonical.setAttribute('href', effectiveCanonical);
 
         // 4. OpenGraph Tags
